@@ -129,6 +129,8 @@ void main() {
     c += valueNoise(v_uv * u_grid) * w * (u_grain / 100.0 * 0.25);
   }
 
+  // lichte dithering tegen kleurstreepjes in donkere verlopen (zoals de export)
+  c += (hash(gl_FragCoord.xy + 17.0) - 0.5) / 255.0;
   gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
 
@@ -185,7 +187,8 @@ export class Renderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    this.image = { w: img.naturalWidth, h: img.naturalHeight, fullW: fullW || img.naturalWidth, fullH: fullH || img.naturalHeight };
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    this.image = { w, h, fullW: fullW || w, fullH: fullH || h };
   }
 
   render(p, width, height) {
@@ -219,5 +222,19 @@ export class Renderer {
     gl.uniform3fv(u.u_shadowColor, hueRGB(p.split_shadow_hue || 0));
     gl.uniform3fv(u.u_highlightColor, hueRGB(p.split_highlight_hue || 0));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  // RGBA-pixels van de laatste render (rijen van onder naar boven)
+  pixels() {
+    const gl = this.gl;
+    const out = new Uint8Array(this.canvas.width * this.canvas.height * 4);
+    gl.readPixels(0, 0, this.canvas.width, this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, out);
+    return out;
+  }
+
+  maxSize() {
+    const gl = this.gl;
+    const dims = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+    return Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), dims[0], dims[1]);
   }
 }

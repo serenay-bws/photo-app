@@ -39,6 +39,8 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const isDesktop = () => window.matchMedia("(min-width: 900px)").matches;
 
 async function api(method, url, body) {
+  // Cloudflare-versie: de "server" draait in de browser zelf
+  if (window.FOTOSTUDIO_LOCAL) return window.FOTOSTUDIO_LOCAL(method, url, body);
   const opts = { method, headers: {} };
   if (body instanceof FormData) opts.body = body;
   else if (body !== undefined) {
@@ -712,15 +714,17 @@ function syncUpscale() {
   const job = p.job;
   const busy = job && (job.status === "running" || job.status === "queued");
   btns.forEach((b) => {
-    b.disabled = !!busy;
+    b.disabled = !!busy || !!p.upscale_note;
     b.classList.toggle("done", String(p.upscaled) === b.dataset.factor);
   });
+  $("#up-note").hidden = !p.upscale_note;
+  $("#up-note").textContent = p.upscale_note || "";
   $("#btn-up-reset").hidden = !p.upscaled || busy;
   $("#up-progress").hidden = !busy;
   if (busy) {
     $("#up-bar").style.width = `${Math.round(job.progress * 100)}%`;
     const pct = Math.round(job.progress * 100);
-    $("#up-text").textContent = job.status === "queued"
+    $("#up-text").textContent = job.status === "queued" || (job.progress === 0 && job.message)
       ? job.message || "In de wachtrij..."
       : `${job.factor === 1 ? "AI verbeteren" : job.factor + "× upscalen"} — ${pct}% ${job.eta ? "· " + fmtTime(job.eta) : ""}`;
   }
@@ -740,9 +744,10 @@ async function startUpscale(photo, factor) {
 $$(".up-btn").forEach((b) => (b.onclick = () => current() && startUpscale(current(), Number(b.dataset.factor))));
 $$("[data-batch-factor]").forEach((b) => (b.onclick = async () => {
   const f = Number(b.dataset.batchFactor);
-  if (!app.photos.length) return;
-  for (const p of app.photos) await startUpscale(p, f);
-  toast(`${app.photos.length} foto's staan in de wachtrij voor ${f === 1 ? "AI verbeteren" : f + "×"}`);
+  const todo = app.photos.filter((p) => !p.upscale_note);
+  if (!todo.length) return toast("Deze foto's zijn al groot genoeg", { error: true });
+  for (const p of todo) await startUpscale(p, f);
+  toast(`${todo.length} foto's staan in de wachtrij voor ${f === 1 ? "AI verbeteren" : f + "×"}`);
 }));
 $("#btn-up-reset").onclick = async () => {
   const p = current();
@@ -805,7 +810,9 @@ async function doExport(mode) {
   setBusy(ids.length > 1 ? `${ids.length} foto's exporteren...` : "Exporteren in hoge kwaliteit...");
   try {
     const res = await api("POST", "/api/export", body);
-    if (app.status?.is_local) {
+    if (res.files) {
+      offerFiles(res);
+    } else if (app.status?.is_local) {
       toast(ids.length > 1 ? `${res.count} foto's opgeslagen in de map Fotostudio` : `Opgeslagen: ${res.filename}`, {
         action: { label: "Open map", run: () => api("POST", "/api/open-export-folder").catch(() => {}) },
       });
@@ -823,6 +830,35 @@ async function doExport(mode) {
   } finally {
     setBusy(null);
   }
+}
+
+// Cloudflare-versie: bestanden staan klaar in de browser
+function offerFiles(res) {
+  const download = (blob, name) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+  const canShare = navigator.canShare && navigator.canShare({ files: res.files });
+  const save = async () => {
+    if (canShare) {
+      try {
+        await navigator.share({ files: res.files });
+        return;
+      } catch (e) {
+        if (e.name === "AbortError") return;
+      }
+    }
+    if (res.files.length === 1) download(res.files[0], res.filename);
+    else download(await res.zip(), res.filename);
+  };
+  const what = res.count > 1 ? `${res.count} foto's` : "Foto";
+  toast(`${what} klaar.`, { action: { label: canShare ? "Bewaar / deel" : "Download", run: save }, ms: 12000 });
 }
 
 // ------------------------------------------------------------------ telefoon

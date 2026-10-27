@@ -82,7 +82,10 @@ def build_onnx(params, scale=4):
         ]
         out = f"conv{idx}"
         nodes.append(
-            helper.make_node("Conv", [prev, f"w{idx}", f"b{idx}"], [out], pads=[1, 1, 1, 1])
+            helper.make_node(
+                "Conv", [prev, f"w{idx}", f"b{idx}"], [out], pads=[1, 1, 1, 1],
+                kernel_shape=[3, 3], strides=[1, 1], dilations=[1, 1], group=1,
+            )
         )
         prev = out
         act_key = f"body.{idx + 1}.weight"

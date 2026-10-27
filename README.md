@@ -6,7 +6,15 @@ stijl**: presets met één klik, een Auto-knop, schuifregelaars, voor/na-vergeli
 en eigen presets opslaan. Alles blijft op je computer, er gaat niets naar
 internet.
 
-## Starten
+## Twee versies
+
+- **Op je telefoon, overal (aanrader):** de app staat online via Cloudflare en alleen
+  jij kunt inloggen. Alles gebeurt op je telefoon zelf; je laptop hoeft niet aan.
+  Zie **[CLOUDFLARE.md](CLOUDFLARE.md)** voor het eenmalig instellen.
+- **Op je computer:** de versie hieronder (`Start.bat` / `Start.command`). Sneller
+  upscalen en geschikt voor grote foto's.
+
+## Starten (computerversie)
 
 **Eenmalig:** download deze map (op GitHub: groene knop **Code → Download ZIP**)
 en pak de ZIP uit, bijvoorbeeld in je map Documenten.
