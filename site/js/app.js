@@ -205,6 +205,10 @@ async function flushSave() {
 }
 
 function changed() {
+  if (app.showOriginal) {
+    app.showOriginal = false;
+    applyOriginal();
+  }
   scheduleRender();
   syncControls();
   persistState();
@@ -550,27 +554,46 @@ $("#btn-compare").onclick = () => {
   applySplit();
 };
 
-let dragging = false, holdTimer = null;
+let dragging = false, holdTimer = null, holding = false, downAt = null;
+function applyOriginal() {
+  const show = app.showOriginal || holding;
+  view.style.opacity = show ? "0" : "";
+  $("#hold-badge").hidden = !show;
+}
 frame.addEventListener("pointerdown", (e) => {
   if (app.compare) {
     dragging = true;
     frame.setPointerCapture(e.pointerId);
     moveSplit(e);
-  } else {
-    // ingedrukt houden = origineel tonen
-    holdTimer = setTimeout(() => { view.style.opacity = "0"; $("#hold-badge").hidden = false; }, 160);
+    return;
+  }
+  // tikken = origineel aan/uit; ingedrukt houden = origineel zolang je vasthoudt
+  downAt = { x: e.clientX, y: e.clientY, t: performance.now() };
+  holdTimer = setTimeout(() => { holding = true; applyOriginal(); }, 300);
+});
+frame.addEventListener("pointermove", (e) => {
+  if (dragging) moveSplit(e);
+  else if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 12) {
+    clearTimeout(holdTimer);
+    downAt = null;
   }
 });
-frame.addEventListener("pointermove", (e) => { if (dragging) moveSplit(e); });
-const endPointer = () => {
-  dragging = false;
+frame.addEventListener("pointerup", () => {
   clearTimeout(holdTimer);
-  view.style.opacity = "";
-  $("#hold-badge").hidden = true;
+  if (dragging) dragging = false;
+  else if (holding) holding = false;
+  else if (downAt) app.showOriginal = !app.showOriginal;
+  downAt = null;
+  applyOriginal();
+});
+const cancelPointer = () => {
+  dragging = holding = false;
+  downAt = null;
+  clearTimeout(holdTimer);
+  applyOriginal();
 };
-frame.addEventListener("pointerup", endPointer);
-frame.addEventListener("pointercancel", endPointer);
-frame.addEventListener("pointerleave", () => { if (!dragging) endPointer(); });
+frame.addEventListener("pointercancel", cancelPointer);
+frame.addEventListener("pointerleave", () => { if (!dragging) cancelPointer(); });
 frame.addEventListener("contextmenu", (e) => e.preventDefault());
 function moveSplit(e) {
   const r = frame.getBoundingClientRect();
@@ -833,33 +856,45 @@ async function doExport(mode) {
 }
 
 // Cloudflare-versie: bestanden staan klaar in de browser
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+let saveURLs = [];
+
 function offerFiles(res) {
-  const download = (blob, name) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-  };
-  const canShare = navigator.canShare && navigator.canShare({ files: res.files });
-  const save = async () => {
+  const box = $("#saveview");
+  saveURLs.forEach((u) => URL.revokeObjectURL(u));
+  saveURLs = res.files.map((f) => URL.createObjectURL(f));
+  $("#save-title").textContent = res.count > 1 ? `${res.count} foto's klaar` : "Je foto is klaar";
+  $("#save-imgs").innerHTML = saveURLs.map((u, i) => `<img src="${u}" alt="${escapeHtml(res.files[i].name)}">`).join("");
+  const canShare = !!(navigator.canShare && navigator.canShare({ files: res.files }));
+  $("#save-btn").textContent = canShare ? (isIOS ? "Bewaar in Foto's" : "Bewaar / deel") : "Download";
+  $("#save-hint").textContent = !isIOS ? ""
+    : canShare ? "Tik op “Bewaar in Foto's” en kies “Bewaar afbeelding”. Of houd een foto ingedrukt en kies “Voeg toe aan Foto's”."
+    : "Houd een foto ingedrukt en kies “Voeg toe aan Foto's”.";
+  $("#save-btn").onclick = async () => {
     if (canShare) {
       try {
         await navigator.share({ files: res.files });
         return;
       } catch (e) {
         if (e.name === "AbortError") return;
+        if (isIOS) return toast("Houd de foto ingedrukt en kies “Voeg toe aan Foto's”", { ms: 7000 });
       }
     }
-    if (res.files.length === 1) download(res.files[0], res.filename);
-    else download(await res.zip(), res.filename);
+    const blob = res.files.length === 1 ? res.files[0] : await res.zip();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = res.filename;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
-  const what = res.count > 1 ? `${res.count} foto's` : "Foto";
-  toast(`${what} klaar.`, { action: { label: canShare ? "Bewaar / deel" : "Download", run: save }, ms: 12000 });
+  box.hidden = false;
 }
+$("#saveview").addEventListener("click", (e) => {
+  if (e.target.id === "saveview" || e.target.closest("[data-close]")) $("#saveview").hidden = true;
+});
 
 // ------------------------------------------------------------------ telefoon
 

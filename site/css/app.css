@@ -15,6 +15,8 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; margin: 0; }
+/* geen inzoomen bij dubbeltikken */
+html, body, button, input, .preset, .thumb { touch-action: manipulation; }
 body {
   background: var(--bg);
   color: var(--text);
@@ -324,3 +326,11 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 }
 
 input, textarea { user-select: text; -webkit-user-select: text; }
+
+.save-card { max-width: 440px; max-height: calc(100vh - 40px); display: flex; flex-direction: column; }
+.save-imgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; overflow-y: auto; min-height: 0; margin: 6px 0; }
+.save-imgs img:only-child { grid-column: 1 / -1; max-height: 55vh; object-fit: contain; }
+.save-imgs img {
+  width: 100%; border-radius: 8px; display: block; background: var(--bg);
+  -webkit-touch-callout: default; user-select: auto; -webkit-user-select: auto; pointer-events: auto;
+}
