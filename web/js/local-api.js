@@ -150,6 +150,7 @@ async function photoJson(meta) {
   if (!u || u.version !== meta.version) {
     if (u) { URL.revokeObjectURL(u.preview); URL.revokeObjectURL(u.thumb); }
     const [p, t] = await Promise.all([db.get("blobs", `${meta.id}:preview`), db.get("blobs", `${meta.id}:thumb`)]);
+    if (!p || !t) fail("voorbeeldafbeelding ontbreekt in de opslag van de browser");
     u = { version: meta.version, preview: URL.createObjectURL(p), thumb: URL.createObjectURL(t) };
     urls.set(meta.id, u);
   }
@@ -169,6 +170,14 @@ async function photoJson(meta) {
 }
 
 class HttpError extends Error {}
+
+// "bestand:regel" van de plek waar een fout ontstond (helpt bij foutmeldingen van een iPhone)
+export function where(e) {
+  if (e instanceof HttpError) return "";
+  const line = (e?.stack || "").split("\n").find((l) => /\.js:\d+/.test(l)) || "";
+  const m = line.match(/([\w.-]+\.js):(\d+)/);
+  return m ? ` [${m[1]}:${m[2]}]` : "";
+}
 const fail = (msg) => { throw new HttpError(msg); };
 
 // ------------------------------------------------------------------ upscalen
@@ -182,7 +191,7 @@ async function runQueue() {
       await runJob(job);
     } catch (e) {
       console.error(e);
-      Object.assign(job, { status: "error", message: `Upscalen mislukt: ${e.message}` });
+      Object.assign(job, { status: "error", message: `Upscalen mislukt: ${e.message}${where(e)}` });
     }
   }
   working = false;
@@ -238,7 +247,7 @@ async function addPhotos(form) {
       await db.put("photos", meta);
       photos.push(await photoJson(meta));
     } catch (e) {
-      errors.push(`${file.name}: ${e.message}`);
+      errors.push(`${file.name}: ${e.message}${where(e)}`);
     }
   }
   return { photos, errors };
@@ -263,7 +272,12 @@ async function exportPhotos({ photo_ids, state }) {
     r.setImage(img, w, h);
     release(img);
     r.render(effective(state ?? meta.state, byId));
-    const out = await toBlob(r.canvas, "image/jpeg", JPEG_QUALITY);
+    let out;
+    try {
+      out = await toBlob(r.canvas, "image/jpeg", JPEG_QUALITY);
+    } finally {
+      r.free();
+    }
     let base = meta.name.replace(/\.[^.]+$/, "").replace(/[^\w-]+/g, "_") || "foto";
     if (meta.upscaled === 1) base += "_ai"; else if (meta.upscaled) base += `_${meta.upscaled}x`;
     let name = `${base}_edit.jpg`, i = 2;
@@ -279,7 +293,8 @@ async function exportPhotos({ photo_ids, state }) {
 async function autoAdjust(id) {
   const img = await loadImage(await db.get("blobs", `${id}:preview`));
   const c = resized(img, ...fit(img.naturalWidth, img.naturalHeight, 512));
-  const px = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+  const px = c.getContext("2d")?.getImageData(0, 0, c.width, c.height).data;
+  if (!px) fail("te weinig geheugen in de browser; sluit de app en open hem opnieuw");
   release(c);
   return suggest(px);
 }
@@ -289,14 +304,20 @@ async function copyLook(id, form) {
   let ref;
   try { ref = await loadImage(refFile); } catch { fail("Dat voorbeeld is geen geldige foto"); }
   const rc = resized(ref, ...fit(ref.naturalWidth, ref.naturalHeight, 300));
-  const refPixels = rc.getContext("2d").getImageData(0, 0, rc.width, rc.height).data;
+  const refPixels = rc.getContext("2d")?.getImageData(0, 0, rc.width, rc.height).data;
+  if (!refPixels) fail("te weinig geheugen in de browser; sluit de app en open hem opnieuw");
   release(rc);
   const img = await loadImage(await db.get("blobs", `${id}:preview`));
   const small = resized(img, ...fit(img.naturalWidth, img.naturalHeight, 200));
   const r = renderers().match;
   r.setImage(small, small.width, small.height);
   release(small);
-  const params = await matchLook((p) => { r.render(p); return r.pixels(); }, refPixels);
+  let params;
+  try {
+    params = await matchLook((p) => { r.render(p); return r.pixels(); }, refPixels);
+  } finally {
+    r.free();
+  }
   const customs = await db.all("presets");
   const n = customs.filter((p) => p.name.startsWith("Look ")).length + 1;
   const preset = { id: "custom-" + crypto.randomUUID().slice(0, 8), name: `Look ${n}`, short: "L" + n, params: cleanParams(params) };
@@ -376,7 +397,7 @@ export async function localApi(method, url, body) {
       try {
         return await handler(m, body);
       } catch (e) {
-        throw new Error(e.message || "Er ging iets mis");
+        throw new Error((e.message || "Er ging iets mis") + where(e));
       }
     }
   }

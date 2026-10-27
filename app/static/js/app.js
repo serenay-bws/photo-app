@@ -262,7 +262,7 @@ async function showPhoto(id) {
     renderPresetTiles();
     syncControls();
   } catch (e) {
-    toast(e.message, { error: true });
+    toast(errorText(e), { error: true, ms: 9000 });
   } finally {
     clearTimeout(busy);
     setBusy(null);
@@ -278,6 +278,8 @@ function setBusy(text) {
 
 function renderPresetStrip() {
   const strip = $("#preset-strip");
+  // oude tegels meteen vrijgeven (iPhone: beperkt canvas-geheugen)
+  strip.querySelectorAll("canvas").forEach((c) => { c.width = c.height = 0; });
   strip.innerHTML = "";
   const none = { id: null, name: "Geen" };
   const groupOf = (pr) => (pr.id == null ? null : pr.builtin ? pr.group || "Basis" : "Mijn presets");
@@ -346,6 +348,7 @@ function renderPresetTiles() {
     const pr = el.dataset.id ? app.byId[el.dataset.id] : null;
     thumbRenderer.render(effective({ preset: pr ? pr.id : null, strength: 100, adjust: {} }));
     const ctx = c.getContext("2d");
+    if (!ctx) continue;
     ctx.drawImage(thumbRenderer.canvas, sx, sy, side, side, 0, 0, c.width, c.height);
   }
 }
@@ -1083,6 +1086,15 @@ function syncTabs() {
 }
 $$(".tabs button").forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
 window.matchMedia("(min-width: 900px)").addEventListener("change", () => { syncTabs(); layoutFrame(); });
+
+// onverwachte fouten tonen, met de plek waar het misging
+function errorText(e) {
+  const line = (e?.stack || "").split("\n").find((l) => /\.js:\d+/.test(l)) || "";
+  const m = line.match(/([\w.-]+\.js):(\d+)/);
+  return `${e?.message || e}${m ? ` [${m[1]}:${m[2]}]` : ""}`;
+}
+window.addEventListener("error", (ev) => toast(`Fout: ${errorText(ev.error || ev.message)}`, { error: true, ms: 9000 }));
+window.addEventListener("unhandledrejection", (ev) => toast(`Fout: ${errorText(ev.reason)}`, { error: true, ms: 9000 }));
 
 // ------------------------------------------------------------------ start
 

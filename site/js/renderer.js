@@ -236,6 +236,15 @@ export class Renderer {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
+  // geheugen teruggeven (grote export-canvassen kosten op een iPhone veel)
+  free() {
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array(3));
+    this.canvas.width = this.canvas.height = 1;
+    this.image = null;
+  }
+
   // RGBA-pixels van de laatste render (rijen van onder naar boven)
   pixels() {
     const gl = this.gl;

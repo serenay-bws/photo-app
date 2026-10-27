@@ -95,7 +95,9 @@ export function modelBudget() {
 export async function upscale(src, outW, outH, onProgress, { tile = 192, pad = 12 } = {}) {
   const { ort, session } = await load();
   const w = src.width, h = src.height;
-  const input = src.getContext("2d").getImageData(0, 0, w, h).data;
+  const sctx = src.getContext("2d");
+  if (!sctx) throw new Error("te weinig geheugen in de browser");
+  const input = sctx.getImageData(0, 0, w, h).data;
   const out = document.createElement("canvas");
   out.width = outW;
   out.height = outH;
