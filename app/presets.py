@@ -79,32 +79,20 @@ BUILTIN = [
         },
     },
     {
-        # Nagebouwd op basis van voor/na-voorbeelden van een "dark moody" Lightroom-pack:
-        # vooral ~2 stops donkerder, licht gedempte kleuren, huid iets lichter gehouden.
+        # Nagebouwd op basis van 6 voor/na-voorbeelden van een "dark moody" Lightroom-pack:
+        # ~2 stops donkerder, geel/beige grijs, huid iets lichter gehouden.
         "id": "dark-luxe",
         "name": "Dark Luxe",
         "short": "DL",
-        "params": {
-            "exposure": -100, "contrast": 6, "highlights": 0, "shadows": -2,
-            "blacks": -14, "saturation": -11, "temperature": 6, "tint": 12,
-            "grain": 0, "vignette": 7, "sharpness": 0, "fade": 0,
-            "orange_lum": 19,
-        },
+        "params": {"exposure": -99, "contrast": 17, "highlights": 16, "shadows": -2, "blacks": 7, "temperature": 8, "tint": -14, "orange_sat": -31, "orange_lum": 15, "orange_hue": -15, "yellow_sat": -95, "green_hue": 0, "blue_hue": 0, "split_shadow": 3, "split_highlight": 9, "split_shadow_hue": 266, "split_highlight_hue": 182},
     },
     {
-        # Nagebouwd op basis van voor/na-voorbeelden van een "gym" Lightroom-pack:
-        # donker met diepe zwarten, de huid wordt juist opgelicht en bronzer (kleurtinten).
+        # Nagebouwd op basis van 6 voor/na-voorbeelden van een "gym" Lightroom-pack:
+        # donker en contrastrijk, blauw gedempt, de huid wordt juist opgelicht en bronzer.
         "id": "gym-bronze",
         "name": "Gym Bronze",
         "short": "GB",
-        "params": {
-            "exposure": -60, "contrast": 17, "highlights": 68, "shadows": 17,
-            "blacks": -100, "saturation": -25, "temperature": 18, "tint": 10,
-            "grain": 0, "vignette": 5, "sharpness": 10, "fade": 0,
-            "orange_sat": 22, "orange_lum": 60,
-            "split_shadow": 18, "split_shadow_hue": 198,
-            "split_highlight": 18, "split_highlight_hue": 95,
-        },
+        "params": {"exposure": -75, "contrast": 34, "highlights": 100, "shadows": 1, "blacks": -4, "temperature": 22, "orange_sat": 12, "orange_lum": 41, "orange_hue": -14, "yellow_sat": 7, "green_hue": 1, "blue_hue": 1, "blue_sat": -78, "split_shadow": 34, "split_highlight": 17, "split_shadow_hue": 191, "split_highlight_hue": 178},
     },
 ]
 
