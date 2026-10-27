@@ -1,3 +1,4 @@
+import { ASPECTS, cropRect, defaultCrop, frameSize, isIdentity, renderGeometry } from "./geometry.js";
 import { Renderer } from "./renderer.js";
 
 // ------------------------------------------------------------------ config
@@ -216,6 +217,7 @@ function changed() {
   scheduleRender();
   syncControls();
   persistState();
+  if (!app.restoring) scheduleCommit();
 }
 
 function layoutFrame() {
@@ -226,11 +228,12 @@ function layoutFrame() {
   const cs = getComputedStyle(stage);
   const availW = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const availH = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-  const ar = app.previewImg.naturalWidth / app.previewImg.naturalHeight;
+  const ar = (app.srcW || app.previewImg.naturalWidth) / (app.srcH || app.previewImg.naturalHeight);
   let w = availW, h = w / ar;
   if (h > availH) { h = availH; w = h * ar; }
   frame.style.width = `${Math.max(1, Math.floor(w))}px`;
   frame.style.height = `${Math.max(1, Math.floor(h))}px`;
+  positionCropBox();
 }
 new ResizeObserver(layoutFrame).observe($("#stage"));
 
@@ -253,11 +256,11 @@ async function showPhoto(id) {
     app.previewImg = prev;
     app.thumbImg = thumb;
     app.loadedVersion = p.version;
-    $("#before").src = p.preview_url;
-    renderer.setImage(prev, p.width, p.height);
     thumbRenderer.setImage(thumb, p.width, p.height);
     $("#frame").hidden = false;
-    layoutFrame();
+    histFor(p.id);
+    updateSource();
+    syncCrop();
     renderer.render(effective(curState()));
     renderPresetTiles();
     syncControls();
@@ -274,7 +277,271 @@ function setBusy(text) {
   if (text) $("#stage-busy-text").textContent = text;
 }
 
+// ------------------------------------------------------------------ bron (bijsnijden)
+
+// Het beeld dat de preview bewerkt: de preview, eventueel gedraaid/rechtgezet/bijgesneden.
+// In de bijsnij-modus tonen we het hele gedraaide beeld met een kader erover.
+function updateSource() {
+  const p = current();
+  if (!p || !app.previewImg) return;
+  const img = app.previewImg;
+  const pw = img.naturalWidth, ph = img.naturalHeight;
+  const g = curState().crop || null;
+  let src = img, fullW = p.width, fullH = p.height;
+  if (app.cropping || !isIdentity(g)) {
+    const geo = g || defaultCrop();
+    src = renderGeometry(img, pw, ph, geo, { withCrop: !app.cropping });
+    if (app.cropping) [fullW, fullH] = frameSize(p.width, p.height, geo);
+    else {
+      const r = cropRect(p.width, p.height, geo);
+      fullW = Math.max(1, Math.round(r.w));
+      fullH = Math.max(1, Math.round(r.h));
+    }
+  }
+  if (app.srcCanvas && app.srcCanvas !== src) app.srcCanvas.width = app.srcCanvas.height = 0;
+  app.srcCanvas = src === img ? null : src;
+  app.srcW = src.naturalWidth || src.width;
+  app.srcH = src.naturalHeight || src.height;
+  renderer.setImage(src, fullW, fullH);
+  const before = $("#before");
+  before.width = app.srcW;
+  before.height = app.srcH;
+  before.getContext("2d")?.drawImage(src, 0, 0);
+  layoutFrame();
+  scheduleRender();
+}
+
+function positionCropBox() {
+  const box = $("#cropbox");
+  const p = current();
+  box.hidden = !app.cropping || !p;
+  if (box.hidden) return;
+  const r = cropRect(p.width, p.height, curState().crop || defaultCrop());
+  box.style.left = `${(r.x / r.fw) * 100}%`;
+  box.style.top = `${(r.y / r.fh) * 100}%`;
+  box.style.width = `${(r.w / r.fw) * 100}%`;
+  box.style.height = `${(r.h / r.fh) * 100}%`;
+}
+
+function setCropping(on) {
+  if (!!app.cropping === on) return;
+  app.cropping = on;
+  document.body.dataset.cropping = on ? "true" : "false";
+  if (on && app.compare) $("#btn-compare").click();
+  updateSource();
+  syncCrop();
+}
+
+function cropState() {
+  const st = curState();
+  if (!st.crop) st.crop = defaultCrop();
+  return st.crop;
+}
+
+function cropChanged({ geometry = false } = {}) {
+  const st = curState();
+  if (st.crop && isIdentity(st.crop)) st.crop = null;
+  if (geometry) updateSource();
+  positionCropBox();
+  syncCrop();
+  changed();
+}
+
+function syncCrop() {
+  const g = curState().crop || defaultCrop();
+  $$("#aspect-chips .chip").forEach((c) => c.classList.toggle("active", String(g.aspect ?? "") === c.dataset.aspect));
+  $("#crop-angle").value = g.angle || 0;
+  $("#angle-val").textContent = `${Number(g.angle || 0).toFixed(1).replace(".0", "")}°`;
+  const zoomVal = Math.round((1 - (g.zoom ?? 1)) * 100);
+  $("#crop-zoom").value = zoomVal;
+  $("#zoom-val").textContent = zoomVal;
+  paintRange($("#crop-angle"));
+  paintRange($("#crop-zoom"));
+}
+
+function buildCropControls() {
+  const box = $("#aspect-chips");
+  box.innerHTML = "";
+  for (const a of ASPECTS) {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = a.label;
+    b.dataset.aspect = a.value == null ? "" : String(a.value);
+    b.onclick = () => {
+      cropState().aspect = a.value;
+      cropChanged();
+    };
+    box.append(b);
+  }
+  $("#crop-angle").addEventListener("input", (e) => {
+    cropState().angle = Number(e.target.value);
+    cropChanged({ geometry: true });
+  });
+  $("#crop-angle").addEventListener("dblclick", () => {
+    cropState().angle = 0;
+    cropChanged({ geometry: true });
+  });
+  $("#crop-zoom").addEventListener("input", (e) => {
+    cropState().zoom = 1 - Number(e.target.value) / 100;
+    cropChanged();
+  });
+  $("#crop-rot").onclick = () => {
+    const g = cropState();
+    g.rot = ((g.rot || 0) + 1) % 4;
+    if (g.aspect) g.aspect = 1 / g.aspect;
+    cropChanged({ geometry: true });
+  };
+  $("#crop-reset").onclick = () => {
+    curState().crop = null;
+    cropChanged({ geometry: true });
+  };
+}
+
+// ------------------------------------------------------------------ ongedaan maken
+
+const hist = new Map();
+let histTimer = null;
+
+function histFor(id) {
+  if (!hist.has(id)) {
+    const p = app.photos.find((x) => x.id === id);
+    hist.set(id, { past: [], future: [], last: JSON.stringify(p?.state || freshState()) });
+  }
+  return hist.get(id);
+}
+
+function scheduleCommit() {
+  clearTimeout(histTimer);
+  histTimer = setTimeout(commitHistory, 450);
+}
+
+function commitHistory() {
+  clearTimeout(histTimer);
+  const p = current();
+  if (!p) return;
+  const h = histFor(p.id);
+  const now = JSON.stringify(curState());
+  if (now !== h.last) {
+    h.past.push(h.last);
+    if (h.past.length > 100) h.past.shift();
+    h.last = now;
+    h.future = [];
+  }
+  syncUndo();
+}
+
+function restore(json) {
+  const p = current();
+  p.state = JSON.parse(json);
+  app.restoring = true;
+  updateSource();
+  changed();
+  app.restoring = false;
+  syncCrop();
+  syncUndo();
+}
+
+function undo() {
+  commitHistory();
+  const p = current();
+  if (!p) return;
+  const h = histFor(p.id);
+  if (!h.past.length) return;
+  h.future.push(h.last);
+  h.last = h.past.pop();
+  restore(h.last);
+}
+
+function redo() {
+  commitHistory();
+  const p = current();
+  if (!p) return;
+  const h = histFor(p.id);
+  if (!h.future.length) return;
+  h.past.push(h.last);
+  h.last = h.future.pop();
+  restore(h.last);
+}
+
+function syncUndo() {
+  const p = current();
+  const h = p ? histFor(p.id) : null;
+  $("#btn-undo").disabled = !h || !h.past.length;
+  $("#btn-redo").disabled = !h || !h.future.length;
+}
+$("#btn-undo").onclick = undo;
+$("#btn-redo").onclick = redo;
+window.addEventListener("keydown", (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.target.matches?.("input[type=text], input[type=password]")) return;
+  const k = e.key.toLowerCase();
+  if (k === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+  else if (k === "y" || (k === "z" && e.shiftKey)) { e.preventDefault(); redo(); }
+});
+
 // ------------------------------------------------------------------ presets
+
+// categorieën worden uit de instellingen van de preset afgeleid
+const FILTERS = [
+  { key: "all", label: "Alles" },
+  { key: "fav", label: "♥ Favorieten" },
+  { key: "dark", label: "Donker", test: (p) => p.exposure <= -25 || (p.blacks <= -20 && p.exposure <= 0) },
+  { key: "light", label: "Licht", test: (p) => p.exposure >= 10 || (p.fade >= 20 && p.exposure >= 0) },
+  { key: "warm", label: "Warm", test: (p) => p.temperature >= 10 || p.orange_sat >= 20 || (p.split_highlight >= 10 && p.split_highlight_hue < 70) },
+  { key: "cool", label: "Koel", test: (p) => p.temperature <= -8 || (p.split_shadow >= 15 && p.split_shadow_hue > 150 && p.split_shadow_hue < 260) },
+  { key: "film", label: "Film", test: (p) => p.grain >= 15 || p.fade >= 15 },
+  { key: "bw", label: "Zwart-wit", test: (p) => p.saturation <= -90 },
+  { key: "mine", label: "Mijn presets" },
+];
+
+function store(key, value) {
+  try {
+    if (value === undefined) return JSON.parse(localStorage.getItem(key) || "null");
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    return null;
+  }
+}
+app.favs = new Set(store("fotostudio-favs") || []);
+app.filter = store("fotostudio-filter") || "all";
+
+function presetMatches(pr) {
+  if (pr.id == null) return true;
+  const f = FILTERS.find((x) => x.key === app.filter) || FILTERS[0];
+  if (f.key === "all") return true;
+  if (f.key === "fav") return app.favs.has(pr.id);
+  if (f.key === "mine") return !pr.builtin;
+  return f.test({ ...Object.fromEntries(Object.keys(RANGES).map((k) => [k, 0])), ...pr.params });
+}
+
+function renderPresetChips() {
+  const box = $("#preset-chips");
+  box.innerHTML = "";
+  for (const f of FILTERS) {
+    const b = document.createElement("button");
+    b.className = "chip" + (f.key === app.filter ? " active" : "");
+    b.textContent = f.label;
+    b.onclick = () => {
+      app.filter = f.key;
+      store("fotostudio-filter", f.key);
+      renderPresetChips();
+      renderPresetStrip();
+      $("#preset-strip").scrollLeft = 0;
+    };
+    box.append(b);
+  }
+}
+
+$("#fav-btn").onclick = () => {
+  const id = curState().preset;
+  if (!id) return;
+  if (app.favs.has(id)) app.favs.delete(id);
+  else {
+    app.favs.add(id);
+    toast("Toegevoegd aan je favorieten ♥");
+  }
+  store("fotostudio-favs", [...app.favs]);
+  renderPresetStrip();
+};
 
 function renderPresetStrip() {
   const strip = $("#preset-strip");
@@ -285,11 +552,21 @@ function renderPresetStrip() {
   const groupOf = (pr) => (pr.id == null ? null : pr.builtin ? pr.group || "Basis" : "Mijn presets");
   // eigen presets vooraan na "Geen", dan Basis, dan de Collectie
   const order = { "Mijn presets": 0, Basis: 1, Collectie: 2 };
-  const sorted = [...app.presets].sort((a, b) => (order[groupOf(a)] ?? 3) - (order[groupOf(b)] ?? 3));
+  const sorted = [...app.presets]
+    .filter(presetMatches)
+    .sort((a, b) => (order[groupOf(a)] ?? 3) - (order[groupOf(b)] ?? 3));
+  if (!sorted.length) {
+    const empty = document.createElement("div");
+    empty.className = "preset-empty muted tiny";
+    empty.textContent = app.filter === "fav"
+      ? "Nog geen favorieten. Kies een preset en tik op het hartje."
+      : "Geen presets in deze categorie.";
+    strip.append(empty);
+  }
   let lastGroup = null;
   for (const pr of [none, ...sorted]) {
     const g = groupOf(pr);
-    if (g && g !== lastGroup) {
+    if (g && g !== lastGroup && app.filter === "all") {
       const sep = document.createElement("div");
       sep.className = "preset-group";
       sep.textContent = g;
@@ -307,6 +584,7 @@ function renderPresetStrip() {
     name.className = "name";
     name.textContent = pr.name;
     el.append(name);
+    if (pr.id && app.favs.has(pr.id)) el.insertAdjacentHTML("beforeend", '<span class="heart">♥</span>');
     if (pr.id && !pr.builtin) {
       const del = document.createElement("span");
       del.className = "del";
@@ -434,41 +712,44 @@ async function deletePreset(pr) {
 
 // ------------------------------------------------------------------ sliders
 
+// Bewerken zoals in VSCO: een rij gereedschappen, en één grote regelaar voor het gekozen gereedschap.
+app.tool = "exposure";
+
 function buildSliders() {
-  const box = $("#sliders");
+  const box = $("#tools");
   box.innerHTML = "";
   for (const s of SLIDERS) {
     if (s.group) {
-      const g = document.createElement("div");
-      g.className = "group-title";
+      const g = document.createElement("span");
+      g.className = "tool-group";
       g.textContent = s.group;
       box.append(g);
       continue;
     }
-    const row = document.createElement("div");
-    row.className = "slider";
-    row.dataset.key = s.key;
-    row.innerHTML = `<div class="slider-head"><span>${s.label}</span><span class="val">0</span></div>
-      <input type="range" min="${s.min}" max="${s.max}" step="1" value="0" aria-label="${s.label}">`;
-    const input = row.querySelector("input");
-    input.addEventListener("input", () => {
-      const st = curState();
-      st.adjust[s.key] = Number(input.value) - presetBase(st, s.key);
-      changed();
-    });
-    // dubbelklik / dubbeltik = terug naar de waarde van de preset
-    row.querySelector(".slider-head").addEventListener("dblclick", () => {
-      const st = curState();
-      delete st.adjust[s.key];
-      changed();
-    });
-    input.addEventListener("dblclick", () => {
-      const st = curState();
-      delete st.adjust[s.key];
-      changed();
-    });
-    box.append(row);
+    const b = document.createElement("button");
+    b.className = "tool";
+    b.dataset.key = s.key;
+    b.innerHTML = `${s.label}<b>0</b>`;
+    b.onclick = () => {
+      app.tool = s.key;
+      syncControls();
+    };
+    box.append(b);
   }
+  const input = $("#tool-range");
+  input.addEventListener("input", () => {
+    const st = curState();
+    st.adjust[app.tool] = Number(input.value) - presetBase(st, app.tool);
+    changed();
+  });
+  const resetTool = () => {
+    const st = curState();
+    delete st.adjust[app.tool];
+    changed();
+  };
+  // dubbeltik op de regelaar of het pijltje = terug naar de waarde van de preset
+  input.addEventListener("dblclick", resetTool);
+  $("#tool-reset").onclick = resetTool;
 }
 
 function paintRange(input) {
@@ -488,15 +769,27 @@ function syncControls() {
   $("#photo-count").textContent = app.photos.length ? `(${app.photos.length})` : "";
   $("#export-count").textContent = `(${app.photos.length})`;
 
-  for (const row of $$("#sliders .slider")) {
-    const k = row.dataset.key;
-    const input = row.querySelector("input");
+  const fmt = (k, v) => (v > 0 && RANGES[k][0] < 0 ? `+${v}` : `${v}`);
+  for (const b of $$("#tools .tool")) {
+    const k = b.dataset.key;
     const v = Math.round(eff[k]);
+    b.querySelector("b").textContent = fmt(k, v);
+    b.classList.toggle("changed", v !== 0);
+    b.classList.toggle("active", k === app.tool);
+  }
+  const tool = SLIDERS.find((x) => x.key === app.tool);
+  if (tool) {
+    const input = $("#tool-range");
+    const v = Math.round(eff[tool.key]);
+    input.min = tool.min;
+    input.max = tool.max;
     if (document.activeElement !== input || Number(input.value) !== v) input.value = v;
-    row.querySelector(".val").textContent = v > 0 && RANGES[k][0] < 0 ? `+${v}` : `${v}`;
-    row.classList.toggle("changed", v !== 0);
+    $("#tool-name").textContent = tool.label;
+    $("#tool-val").textContent = fmt(tool.key, v);
     paintRange(input);
   }
+  $("#btn-paste").disabled = !app.clipboard;
+  syncUndo();
 
   for (const el of $$("#preset-strip .preset")) {
     if (el.dataset.id === undefined) continue;
@@ -505,6 +798,9 @@ function syncControls() {
   const pr = st.preset ? app.byId[st.preset] : null;
   $("#strength-row").hidden = !pr;
   if (pr) {
+    const fav = app.favs.has(pr.id);
+    $("#fav-btn").textContent = fav ? "♥" : "♡";
+    $("#fav-btn").classList.toggle("on", fav);
     $("#strength-name").textContent = pr.name;
     $("#strength").value = st.strength ?? 100;
     $("#strength-val").textContent = Math.round(st.strength ?? 100);
@@ -522,19 +818,42 @@ $("#btn-reset").onclick = () => {
   const p = current();
   if (!p) return;
   p.state = freshState();
+  updateSource();
   changed();
+  syncCrop();
   toast("Alle bewerkingen gewist");
 };
 
+// bewerking zonder uitsnede (die hoort bij één foto)
+function lookOf(st) {
+  const { crop, ...look } = JSON.parse(JSON.stringify(st || freshState()));
+  return look;
+}
+
 $("#btn-apply-all").onclick = async () => {
-  const st = curState();
+  const look = lookOf(curState());
   const others = app.photos.filter((p) => p.id !== app.currentId);
   if (!others.length) return toast("Er is maar één foto");
   for (const p of others) {
-    p.state = JSON.parse(JSON.stringify(st));
+    p.state = { ...JSON.parse(JSON.stringify(look)), crop: p.state?.crop || null };
     api("PUT", `/api/photos/${p.id}/state`, { state: p.state }).catch(() => {});
   }
-  toast(`Instellingen toegepast op ${others.length + 1} foto's`);
+  toast(`Bewerking toegepast op ${others.length + 1} foto's (bijsnijden niet)`);
+};
+
+app.clipboard = store("fotostudio-clipboard");
+$("#btn-copy").onclick = () => {
+  app.clipboard = lookOf(curState());
+  store("fotostudio-clipboard", app.clipboard);
+  syncControls();
+  toast("Bewerking gekopieerd — kies een andere foto en tik op Plak");
+};
+$("#btn-paste").onclick = () => {
+  const p = current();
+  if (!p || !app.clipboard) return;
+  p.state = { ...JSON.parse(JSON.stringify(app.clipboard)), crop: p.state?.crop || null };
+  changed();
+  toast("Bewerking geplakt");
 };
 $("#btn-save-preset").onclick = savePreset;
 
@@ -581,35 +900,73 @@ function applyOriginal() {
   view.style.opacity = show ? "0" : "";
   $("#hold-badge").hidden = !show;
 }
+let cropDrag = null, swipeStart = null;
 frame.addEventListener("pointerdown", (e) => {
+  if (app.cropping) {
+    // kader verslepen
+    const p = current();
+    const r = cropRect(p.width, p.height, cropState());
+    cropDrag = { x: e.clientX, y: e.clientY, cx: (r.x + r.w / 2) / r.fw, cy: (r.y + r.h / 2) / r.fh };
+    frame.setPointerCapture(e.pointerId);
+    return;
+  }
   if (app.compare) {
     dragging = true;
     frame.setPointerCapture(e.pointerId);
     moveSplit(e);
     return;
   }
-  // tikken = origineel aan/uit; ingedrukt houden = origineel zolang je vasthoudt
+  // tikken = origineel aan/uit; ingedrukt houden = origineel zolang je vasthoudt; vegen = andere foto
   downAt = { x: e.clientX, y: e.clientY, t: performance.now() };
+  swipeStart = { ...downAt };
   holdTimer = setTimeout(() => { holding = true; applyOriginal(); }, 300);
 });
 frame.addEventListener("pointermove", (e) => {
+  if (cropDrag) {
+    const rect = frame.getBoundingClientRect();
+    const g = cropState();
+    g.cx = clamp(cropDrag.cx + (e.clientX - cropDrag.x) / rect.width, 0, 1);
+    g.cy = clamp(cropDrag.cy + (e.clientY - cropDrag.y) / rect.height, 0, 1);
+    positionCropBox();
+    return;
+  }
   if (dragging) moveSplit(e);
   else if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 12) {
     clearTimeout(holdTimer);
     downAt = null;
   }
 });
-frame.addEventListener("pointerup", () => {
+frame.addEventListener("pointerup", (e) => {
   clearTimeout(holdTimer);
+  if (cropDrag) {
+    // middelpunt vastleggen zoals het kader echt staat (binnen de foto)
+    const p = current();
+    const g = cropState();
+    const r = cropRect(p.width, p.height, g);
+    g.cx = (r.x + r.w / 2) / r.fw;
+    g.cy = (r.y + r.h / 2) / r.fh;
+    cropDrag = null;
+    cropChanged();
+    return;
+  }
   if (dragging) dragging = false;
   else if (holding) holding = false;
   else if (downAt) app.showOriginal = !app.showOriginal;
-  downAt = null;
+  else if (swipeStart) {
+    const dx = e.clientX - swipeStart.x, dy = e.clientY - swipeStart.y;
+    if (Math.abs(dx) > 60 && Math.abs(dy) < Math.abs(dx) * 0.6 && performance.now() - swipeStart.t < 700) {
+      const i = app.photos.findIndex((x) => x.id === app.currentId);
+      const next = app.photos[i + (dx < 0 ? 1 : -1)];
+      if (next) showPhoto(next.id);
+    }
+  }
+  downAt = swipeStart = null;
   applyOriginal();
 });
 const cancelPointer = () => {
   dragging = holding = false;
-  downAt = null;
+  downAt = swipeStart = null;
+  if (cropDrag) { cropDrag = null; cropChanged(); }
   clearTimeout(holdTimer);
   applyOriginal();
 };
@@ -1074,7 +1431,8 @@ $("#login-form").onsubmit = async (e) => {
 
 function setTab(tab) {
   document.body.dataset.tab = tab;
-  if (tab === "edit" || tab === "upscale") document.body.dataset.side = tab;
+  if (tab === "edit" || tab === "upscale" || tab === "crop") document.body.dataset.side = tab;
+  setCropping(tab === "crop");
   syncTabs();
 }
 function syncTabs() {
@@ -1103,6 +1461,8 @@ async function init() {
   if (!started) {
     document.body.dataset.side = "edit";
     buildSliders();
+    buildCropControls();
+    renderPresetChips();
     syncTabs();
     started = true;
   }

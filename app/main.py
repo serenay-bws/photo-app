@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from . import auth, auto, match, presets, store
 from .config import DATA_DIR, EXPORTS_DIR, JPEG_QUALITY, STATIC_DIR
 from .edits import apply_edits, effective_params
+from .geometry import apply_geometry
 from .imaging import open_rgb, save_jpeg
 from .tunnel import load_settings as tunnel_settings
 from .tunnel import save_settings as save_tunnel_settings
@@ -385,10 +386,12 @@ class ExportBody(BaseModel):
 
 def render_export(photo_id, state, by_id):
     meta = store.get_meta(photo_id)
-    st = state if state is not None else meta.get("state")
+    own = meta.get("state") or {}
+    st = state if state is not None else own
     params = effective_params(st, by_id)
-    img = store.load_working(photo_id)
-    arr = apply_edits(np.asarray(img), params)
+    # bijsnijden hoort altijd bij de foto zelf, ook bij "alle foto's met deze instellingen"
+    img = apply_geometry(store.load_working(photo_id), own.get("crop"))
+    arr = apply_edits(np.asarray(img.convert("RGB")), params)
     return meta, Image.fromarray(arr)
 
 

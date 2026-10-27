@@ -4,6 +4,7 @@
 
 import { matchLook, suggest, describe } from "./analysis.js";
 import { db } from "./db.js";
+import { cropRect, isIdentity, renderGeometry } from "./geometry.js";
 import { Renderer } from "./renderer.js";
 import * as ai from "./webai.js";
 import { makeZip } from "./zip.js";
@@ -266,9 +267,18 @@ async function exportPhotos({ photo_ids, state }) {
     const blob = (await db.get("blobs", `${id}:working`)) || (await db.get("blobs", `${id}:original`));
     let img = await loadImage(blob);
     let w = img.naturalWidth, h = img.naturalHeight;
-    // binnen de grenzen van het toestel blijven
-    const s = Math.min(1, max / Math.max(w, h), Math.sqrt(MAX_OUT_PIXELS / (w * h)));
-    if (s < 1) { [w, h] = [Math.round(w * s), Math.round(h * s)]; img = resized(img, w, h); }
+    // bijsnijden hoort altijd bij de foto zelf
+    const crop = meta.state?.crop || null;
+    if (!isIdentity(crop)) {
+      const rc = cropRect(w, h, crop);
+      const sc = Math.min(1, max / Math.max(rc.w, rc.h), Math.sqrt(MAX_OUT_PIXELS / (rc.w * rc.h)));
+      img = renderGeometry(img, w, h, crop, { maxLong: Math.max(rc.w, rc.h) * sc });
+      [w, h] = [img.width, img.height];
+    } else {
+      // binnen de grenzen van het toestel blijven
+      const s = Math.min(1, max / Math.max(w, h), Math.sqrt(MAX_OUT_PIXELS / (w * h)));
+      if (s < 1) { [w, h] = [Math.round(w * s), Math.round(h * s)]; img = resized(img, w, h); }
+    }
     r.setImage(img, w, h);
     release(img);
     r.render(effective(state ?? meta.state, byId));

@@ -16,6 +16,12 @@
   <header class="topbar">
     <div class="brand">FOTOSTUDIO</div>
     <div class="actions">
+      <button class="btn ghost icon needs-photo" id="btn-undo" title="Ongedaan maken" disabled>
+        <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+      </button>
+      <button class="btn ghost icon needs-photo" id="btn-redo" title="Opnieuw" disabled>
+        <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+      </button>
       <button class="btn ghost" id="btn-add" title="Foto's toevoegen">
         <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Foto's</span>
       </button>
@@ -46,10 +52,11 @@
         </div>
       </div>
       <div class="frame" id="frame" hidden>
-        <img id="before" alt="Origineel" draggable="false">
+        <canvas id="before"></canvas>
         <canvas id="view"></canvas>
         <div class="split" id="split" hidden><div class="split-handle"><span>VOOR</span><span>NA</span></div></div>
         <div class="badge" id="hold-badge" hidden>ORIGINEEL</div>
+        <div class="cropbox" id="cropbox" hidden><i></i></div>
       </div>
       <div class="stage-job" id="stage-job" hidden>
         <div class="stage-job-text" id="stage-job-text"></div>
@@ -63,12 +70,15 @@
     <nav class="tabs">
       <button data-tab="presets" class="mobile-only">Presets</button>
       <button data-tab="edit">Bewerk</button>
+      <button data-tab="crop">Snijden</button>
       <button data-tab="upscale">Upscale</button>
       <button data-tab="photos" class="mobile-only">Foto's <span id="photo-count"></span></button>
     </nav>
 
     <section class="presets pane" data-pane="presets">
+      <div class="chips" id="preset-chips"></div>
       <div class="strength" id="strength-row" hidden>
+        <button class="fav" id="fav-btn" title="Favoriet">♡</button>
         <span id="strength-name">Preset</span>
         <input type="range" id="strength" min="0" max="100" value="100">
         <span id="strength-val" class="val">100</span>
@@ -77,12 +87,40 @@
     </section>
 
     <section class="pane panel-edit" data-pane="edit">
-      <div class="sliders" id="sliders"></div>
+      <div class="tool-panel" id="tool-panel">
+        <div class="slider-head"><span id="tool-name"></span><span class="val" id="tool-val"></span></div>
+        <div class="tool-row">
+          <input type="range" id="tool-range" min="-100" max="100" step="1" value="0">
+          <button class="btn ghost icon" id="tool-reset" title="Terugzetten">
+            <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="tools" id="tools"></div>
       <div class="pane-actions">
+        <button class="btn ghost small" id="btn-copy">Kopieer bewerking</button>
+        <button class="btn ghost small" id="btn-paste" disabled>Plak</button>
+        <button class="btn ghost small" id="btn-apply-all">Op alle foto's</button>
         <button class="btn ghost small" id="btn-reset">Reset</button>
-        <button class="btn ghost small" id="btn-apply-all">Op alle foto's toepassen</button>
         <button class="btn small" id="btn-save-preset">Opslaan als preset</button>
       </div>
+    </section>
+
+    <section class="pane panel-crop" data-pane="crop">
+      <div class="chips" id="aspect-chips"></div>
+      <div class="tool-slider">
+        <div class="slider-head"><span>Rechtzetten</span><span class="val" id="angle-val">0°</span></div>
+        <input type="range" id="crop-angle" min="-45" max="45" step="0.5" value="0">
+      </div>
+      <div class="tool-slider">
+        <div class="slider-head"><span>Inzoomen</span><span class="val" id="zoom-val">0</span></div>
+        <input type="range" id="crop-zoom" min="0" max="80" step="1" value="0">
+      </div>
+      <div class="pane-actions">
+        <button class="btn ghost small" id="crop-rot">Draai 90°</button>
+        <button class="btn ghost small" id="crop-reset">Herstel</button>
+      </div>
+      <p class="muted tiny">Sleep het kader op de foto om het te verschuiven.</p>
     </section>
 
     <section class="pane panel-upscale" data-pane="upscale">
