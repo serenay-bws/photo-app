@@ -1,39 +1,44 @@
-"""Zet de Cloudflare-versie online en beveilig hem, in één keer.
+"""Zet de Cloudflare-versie online, beveiligd met gebruikersnaam + wachtwoord.
 
-Volgorde (zo is de app nooit onbeveiligd bereikbaar):
-  1. Pages-project aanmaken (nog zonder inhoud)
-  2. Cloudflare Access: alleen het opgegeven e-mailadres mag erin (code per mail)
-  3. De map site/ uploaden (wrangler pages deploy)
-  4. Controleren dat het adres om een login vraagt
+  1. Pages-project aanmaken (als dat nog niet bestaat)
+  2. Inloggegevens instellen als geheime variabelen van het project
+     (alleen een hash van het wachtwoord wordt opgeslagen)
+  3. site/ + functions/ (de login) uploaden met wrangler
+  4. Controleren dat de site om een login vraagt
 
-Nodig: een Cloudflare API-token met de rechten (óf als omgevingsvariabele
-CLOUDFLARE_API_TOKEN, óf als "network secret" voor api.cloudflare.com; dan voegt de
-proxy van de omgeving de sleutel zelf toe en ziet dit script hem nooit)
-  Account → Cloudflare Pages: Edit
-  Account → Access: Apps and Policies: Edit
-  Account → Access: Organizations, Identity Providers, and Groups: Edit
-  Account → Account Settings: Read
+De API-sleutel komt uit CLOUDFLARE_API_TOKEN, of wordt als "network secret" door de
+proxy van de omgeving toegevoegd (dan ziet dit script hem nooit).
 
 Gebruik:
-  uv run python tools/deploy_cloudflare.py --project fotostudio-serenay --email serenayk1@hotmail.com
+  uv run python tools/deploy_cloudflare.py --user serenay            # nieuw wachtwoord maken
+  uv run python tools/deploy_cloudflare.py --keep-password           # alleen nieuwe versie uploaden
 """
 
 import argparse
+import hashlib
 import json
 import os
+import secrets
 import subprocess
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 API = "https://api.cloudflare.com/client/v4"
 WRANGLER = "wrangler@4.151.0"
+ROOT = Path(__file__).resolve().parents[1]
+ITERATIONS = 20000  # moet gelijk zijn aan functions/_middleware.js
+WORDS = """appel berg bloem boot brug duin eiland garnaal golf haven hemel honing kaars kade
+kasteel kers koffie kompas koraal kristal lantaarn lelie maan meeuw mosterd nacht oceaan orchidee
+paleis parel peper pinguin poolster regen rivier roos saffier schelp sneeuw spiegel ster storm
+tijger tulp vanille vlinder vuurtoren walvis wolk zeester zomer zonlicht zwaan""".split()
 
 
-def call(method, path, body=None, token=None):
+def call(method, path, body=None):
+    token = os.environ.get("CLOUDFLARE_API_TOKEN")
     req = urllib.request.Request(
-        API + path, method=method,
-        data=json.dumps(body).encode() if body is not None else None,
+        API + path, method=method, data=json.dumps(body).encode() if body is not None else None,
         headers={"Content-Type": "application/json", **({"Authorization": f"Bearer {token}"} if token else {})},
     )
     try:
@@ -46,82 +51,51 @@ def call(method, path, body=None, token=None):
     return data["result"]
 
 
+def new_password():
+    words = [secrets.choice(WORDS).capitalize() for _ in range(3)]
+    return "-".join(words) + "-" + str(secrets.randbelow(9000) + 1000)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--project", default="fotostudio-serenay")
-    ap.add_argument("--email", required=True)
+    ap.add_argument("--user", default="serenay")
     ap.add_argument("--account", default=os.environ.get("CLOUDFLARE_ACCOUNT_ID"))
+    ap.add_argument("--keep-password", action="store_true")
     args = ap.parse_args()
-    token = os.environ.get("CLOUDFLARE_API_TOKEN")  # leeg = proxy voegt hem toe
-    api = lambda m, p, b=None: call(m, p, b, token)  # noqa: E731
 
-    account = args.account
-    if not account:
-        accounts = api("GET", "/accounts")
-        if len(accounts) != 1:
-            sys.exit("Meerdere accounts; geef --account op: " + ", ".join(f"{a['name']}={a['id']}" for a in accounts))
-        account = accounts[0]["id"]
+    account = args.account or call("GET", "/accounts")[0]["id"]
     acc = f"/accounts/{account}"
 
-    # 1. Pages-project
     try:
-        project = api("GET", f"{acc}/pages/projects/{args.project}")
-        print("Pages-project bestaat al")
+        project = call("GET", f"{acc}/pages/projects/{args.project}")
     except RuntimeError:
-        project = api("POST", f"{acc}/pages/projects", {"name": args.project, "production_branch": "main"})
+        project = call("POST", f"{acc}/pages/projects", {"name": args.project, "production_branch": "main"})
         print("Pages-project aangemaakt")
-    host = project["subdomain"]  # bv. fotostudio-serenay.pages.dev
-    print("Adres:", f"https://{host}")
+    host = project["subdomain"]
 
-    # 2. Cloudflare Access
-    try:
-        api("GET", f"{acc}/access/organizations")
-    except RuntimeError:
-        sys.exit("Zero Trust is nog niet geactiveerd: open in Cloudflare één keer 'Zero Trust', "
-                 "kies een teamnaam en het Free-plan, en draai dit script opnieuw.")
-    idps = api("GET", f"{acc}/access/identity_providers")
-    if not any(i["type"] == "onetimepin" for i in idps):
-        api("POST", f"{acc}/access/identity_providers", {"name": "E-mailcode", "type": "onetimepin", "config": {}})
-        print("Inloggen met e-mailcode aangezet")
-    apps = api("GET", f"{acc}/access/apps")
-    app = next((a for a in apps if a.get("domain") == host), None)
-    if not app:
-        app = api("POST", f"{acc}/access/apps", {
-            "name": "Fotostudio", "type": "self_hosted", "domain": host,
-            "self_hosted_domains": [host, f"*.{host}"],
-            "session_duration": "720h", "app_launcher_visible": False,
-        })
-        print("Access-app aangemaakt")
-    policies = api("GET", f"{acc}/access/apps/{app['id']}/policies")
-    for p in policies:  # alleen onze eigen regel mag bestaan
-        api("DELETE", f"{acc}/access/apps/{app['id']}/policies/{p['id']}")
-    api("POST", f"{acc}/access/apps/{app['id']}/policies", {
-        "name": "Alleen eigenaar", "decision": "allow", "precedence": 1,
-        "include": [{"email": {"email": args.email}}],
-    })
-    print(f"Alleen {args.email} mag inloggen")
+    password = None
+    if not args.keep_password:
+        password = new_password()
+        salt = secrets.token_hex(16)
+        pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt), ITERATIONS).hex()
+        env_vars = {
+            "AUTH_USER": {"type": "plain_text", "value": args.user},
+            "AUTH_PASS_HASH": {"type": "secret_text", "value": f"{salt}:{pw_hash}"},
+            "SESSION_SECRET": {"type": "secret_text", "value": secrets.token_hex(32)},
+        }
+        call("PATCH", f"{acc}/pages/projects/{args.project}",
+             {"deployment_configs": {"production": {"env_vars": env_vars}, "preview": {"env_vars": env_vars}}})
+        print("Inloggegevens ingesteld")
 
-    # 3. Uploaden
     env = {**os.environ, "CLOUDFLARE_ACCOUNT_ID": account, "WRANGLER_SEND_METRICS": "false",
-           # wrangler wil altijd een token zien; bij een network secret vervangt de proxy hem
-           "CLOUDFLARE_API_TOKEN": token or "via-proxy"}
+           "CLOUDFLARE_API_TOKEN": os.environ.get("CLOUDFLARE_API_TOKEN") or "via-proxy"}
     subprocess.run(["npx", "--yes", WRANGLER, "pages", "deploy", "site", "--project-name", args.project,
-                    "--branch", "main", "--commit-dirty=true"], check=True, env=env)
+                    "--branch", "main", "--commit-dirty=true"], check=True, env=env, cwd=ROOT)
 
-    # 4. Controle: zonder login moet je naar Cloudflare Access
-    req = urllib.request.Request(f"https://{host}/", method="GET")
-    opener = urllib.request.build_opener(type("NoRedirect", (urllib.request.HTTPRedirectHandler,),
-                                              {"redirect_request": lambda *a, **k: None}))
-    try:
-        r = opener.open(req, timeout=30)
-        status, location = r.status, ""
-    except urllib.error.HTTPError as e:
-        status, location = e.code, e.headers.get("location", "")
-    if status in (302, 303) and "cloudflareaccess.com" in location:
-        print(f"Klaar en beveiligd: https://{host}")
-    else:
-        print(f"LET OP: verwachtte een login-doorverwijzing, kreeg {status} {location}")
-        sys.exit(1)
+    print(f"\nAdres: https://{host}")
+    if password:
+        print(f"Gebruikersnaam: {args.user}\nWachtwoord: {password}")
 
 
 if __name__ == "__main__":
