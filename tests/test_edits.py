@@ -101,3 +101,23 @@ def test_clean_params_rejects_garbage():
     p = clean_params({"exposure": "abc", "grain": float("nan"), "tint": -500, "unknown": 3})
     assert p["exposure"] == 0 and p["grain"] == 0 and p["tint"] == -100
     assert "unknown" not in p
+
+
+def test_hsl_only_touches_its_color_range():
+    img = np.zeros((10, 30, 3), np.uint8)
+    img[:, :10] = (200, 130, 80)    # huid / oranje
+    img[:, 10:20] = (60, 160, 70)   # groen
+    img[:, 20:] = (128, 128, 128)   # grijs
+    out = apply_edits(img, {"orange_lum": -60, "green_sat": -100}).astype(int)
+    assert out[:, :10].mean() < img[:, :10].mean() - 15          # huid donkerder
+    g = out[0, 15]
+    assert max(g) - min(g) < (160 - 60) * 0.5                    # groen veel minder kleurrijk
+    assert np.abs(out[:, 20:] - 128).max() <= 1                  # grijs onaangetast
+
+
+def test_dither_avoids_banding_but_keeps_values():
+    grad = np.tile(np.linspace(0, 255, 300).astype(np.uint8), (50, 1))[..., None].repeat(3, 2)
+    out = apply_edits(grad, {"exposure": -100}).astype(float)
+    # zonder dithering zou elke kolom één vaste waarde hebben (harde streepjes)
+    assert out[:, 150, 0].std() > 0
+    assert out[:, 150, 0].max() - out[:, 150, 0].min() <= 1

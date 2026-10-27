@@ -15,6 +15,8 @@ Volgorde per pixel (waarden 0..1, sRGB):
   8. fade (matte look)
   9. vignet
  10. filmkorrel
+Tussen 6 en 7 zit nog "kleurtinten" (HSL): verzadiging/helderheid per kleurgebied
+(huid/oranje, groen, blauw).
 """
 
 import numpy as np
@@ -39,8 +41,17 @@ TONING = {
     "split_shadow": (0, 100),
     "split_highlight": (0, 100),
 }
+# Kleurtinten (HSL): naam -> (min, max); werkt alleen op dat kleurgebied
+HSL = {
+    "orange_sat": (-100, 100),
+    "orange_lum": (-100, 100),
+    "green_sat": (-100, 100),
+    "blue_sat": (-100, 100),
+}
+# kleurgebied: (middelste tint in graden, halve breedte)
+HSL_RANGES = {"orange": (30.0, 35.0), "green": (110.0, 50.0), "blue": (215.0, 50.0)}
 HUES = ("split_shadow_hue", "split_highlight_hue")
-SCALABLE = {**SLIDERS, **TONING}
+SCALABLE = {**SLIDERS, **HSL, **TONING}
 PARAM_KEYS = list(SCALABLE) + list(HUES)
 
 # Korrel en verscherping zijn gedefinieerd op een raster van max. GRID_LONG
@@ -120,6 +131,37 @@ def _hue_rgb(h):
         ],
         dtype=np.float32,
     )
+
+
+def _hue_weights(c):
+    """Tint (graden) per pixel en een weging die grijze pixels negeert."""
+    r, g, b = c[..., 0], c[..., 1], c[..., 2]
+    mx = np.maximum(np.maximum(r, g), b)
+    mn = np.minimum(np.minimum(r, g), b)
+    chroma = mx - mn
+    safe = np.maximum(chroma, 1e-6)
+    h = np.where(
+        mx == r, np.mod((g - b) / safe, 6.0),
+        np.where(mx == g, (b - r) / safe + 2.0, (r - g) / safe + 4.0),
+    ) * 60.0
+    return h, _smoothstep(0.02, 0.15, chroma)
+
+
+def _range_weight(h, center, half):
+    d = np.abs(np.mod(h - center + 180.0, 360.0) - 180.0)
+    return np.clip(1.0 - d / half, 0.0, 1.0)
+
+
+def _hsl_adjust(c, p):
+    h, chroma_w = _hue_weights(c)
+    w_o = _range_weight(h, *HSL_RANGES["orange"]) * chroma_w
+    w_g = _range_weight(h, *HSL_RANGES["green"]) * chroma_w
+    w_b = _range_weight(h, *HSL_RANGES["blue"]) * chroma_w
+    sat = 1.0 + (w_o * p["orange_sat"] + w_g * p["green_sat"] + w_b * p["blue_sat"]) / 100.0
+    lum = 1.0 + w_o * (p["orange_lum"] / 100.0 * 0.6)
+    L = _luma(c)[..., None]
+    c = L + (c - L) * sat[..., None]
+    return c * lum[..., None]
 
 
 class _Geometry:
@@ -205,6 +247,10 @@ def _process_rows(src, y0, y1, p, geo):
         L = _luma(c)[..., None]
         c = L + (c - L) * (1.0 + p["saturation"] / 100.0)
 
+    # 6b. kleurtinten (HSL)
+    if p["orange_sat"] or p["orange_lum"] or p["green_sat"] or p["blue_sat"]:
+        c = _hsl_adjust(c, p)
+
     # 7. split toning
     if p["split_shadow"] or p["split_highlight"]:
         L = np.clip(_luma(c), 0, 1)[..., None]
@@ -245,7 +291,12 @@ def apply_edits(img, params):
     h, w = img.shape[:2]
     geo = _Geometry(w, h)
     out = np.empty_like(img)
+    # vaste dither-tegel: voorkomt kleurstreepjes (banding) in donkere verlopen
+    dither = np.random.default_rng(11).random((64, 64), dtype=np.float32)
+    reps = (-(-w // 64))
     for y0 in range(0, h, STRIP_ROWS):
         y1 = min(h, y0 + STRIP_ROWS)
-        out[y0:y1] = (_process_rows(img, y0, y1, p, geo) * 255.0 + 0.5).astype(np.uint8)
+        rows = np.arange(y0, y1) % 64
+        d = np.tile(dither[rows], (1, reps))[:, :w, None]
+        out[y0:y1] = (_process_rows(img, y0, y1, p, geo) * 255.0 + d).astype(np.uint8)
     return out

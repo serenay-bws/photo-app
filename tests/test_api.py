@@ -126,3 +126,25 @@ def test_path_traversal_blocked(client):
     assert client.get("/api/exports/..%2F..%2Fpyproject.toml").status_code == 404
     assert client.get("/api/photos/../../etc/preview").status_code == 404
     assert client.get("/api/photos/zzzzzzzzzzzz/preview").status_code == 404
+
+
+def test_ai_enhance_keeps_size(client):
+    p = upload(client, sharp_image(200, 150), "scherp.png")
+    client.post(f"/api/photos/{p['id']}/upscale", json={"factor": 1})
+    done = wait_job(client, p["id"])
+    assert done["job"]["status"] == "done"
+    assert (done["width"], done["height"]) == (200, 150) and done["upscaled"] == 1
+    exp = client.post("/api/export", json={"photo_ids": [p["id"]], "state": None}).json()
+    assert exp["filename"].endswith("_ai_edit.jpg")
+
+
+def test_copy_look_creates_preset(client):
+    p = upload(client, sample_image(seed=8))
+    ref = Image.fromarray((np.asarray(sample_image(seed=9)) * 0.35).astype(np.uint8))
+    res = client.post(f"/api/photos/{p['id']}/match",
+                      files=[("reference", ("voorbeeld.jpg", jpeg_bytes(ref), "image/jpeg"))]).json()
+    assert res["preset"]["name"].startswith("Look ")
+    assert res["preset"]["params"]["exposure"] < 0
+    assert res["preset"]["id"] in {x["id"] for x in client.get("/api/presets").json()}
+    bad = client.post(f"/api/photos/{p['id']}/match", files=[("reference", ("x.jpg", b"nee", "image/jpeg"))])
+    assert bad.status_code == 400

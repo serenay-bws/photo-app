@@ -174,7 +174,7 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .panel-upscale p { margin: 0; font-size: 12px; }
 .up-size { font-size: 13px; }
 .up-size b { font-weight: 600; }
-.up-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.up-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 .up-btn {
   display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 8px;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
@@ -182,7 +182,8 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 }
 .up-btn:hover { border-color: #555; }
 .up-btn b { font-size: 22px; font-weight: 600; letter-spacing: .02em; }
-.up-btn small { font-size: 11px; color: var(--muted); }
+.up-btn small { font-size: 11px; color: var(--muted); text-align: center; }
+.panel-upscale p.tiny b { color: var(--muted); font-weight: 600; }
 .up-btn.done { border-color: var(--text); }
 .up-btn:disabled { opacity: .35; cursor: default; }
 .progress .bar { height: 3px; background: #2a2a2e; border-radius: 3px; overflow: hidden; }

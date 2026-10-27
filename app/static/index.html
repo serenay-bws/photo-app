@@ -83,6 +83,7 @@
       <p class="muted" id="up-engine">AI-upscaler wordt voorbereid...</p>
       <div class="up-size" id="up-size"></div>
       <div class="up-buttons">
+        <button class="up-btn" data-factor="1" title="AI maakt je foto scherper en schoner, zelfde formaat"><b>AI</b><small>verbeteren</small><small>zelfde formaat</small></button>
         <button class="up-btn" data-factor="2"><b>2×</b><small id="up-t2"></small></button>
         <button class="up-btn" data-factor="4"><b>4×</b><small id="up-t4"></small></button>
       </div>
@@ -93,10 +94,11 @@
       <button class="btn ghost small" id="btn-up-reset" hidden>Terug naar origineel formaat</button>
       <div class="up-batch">
         <span class="muted">Alle foto's in één keer:</span>
+        <button class="btn ghost small" data-batch-factor="1">Alles AI</button>
         <button class="btn ghost small" data-batch-factor="2">Alles 2×</button>
         <button class="btn ghost small" data-batch-factor="4">Alles 4×</button>
       </div>
-      <p class="muted tiny">Real-ESRGAN voegt echt detail toe. Zonder videokaart werkt het ook, alleen trager.</p>
+      <p class="muted tiny"><b>AI verbeteren</b> houdt het formaat gelijk maar maakt de foto scherper en ruisvrij. <b>2×/4×</b> maakt hem ook groter. Real-ESRGAN voegt echt detail toe; zonder videokaart werkt het ook, alleen trager. Je presets en bewerkingen blijven gewoon staan.</p>
     </section>
 
     <section class="pane filmstrip" data-pane="photos">
@@ -105,6 +107,7 @@
   </main>
 
   <input type="file" id="file-input" accept="image/*,.heic,.heif" multiple hidden>
+  <input type="file" id="ref-input" accept="image/*,.heic,.heif" hidden>
 
   <div class="drop-overlay" id="drop-overlay" hidden><div>Laat los om toe te voegen</div></div>
 

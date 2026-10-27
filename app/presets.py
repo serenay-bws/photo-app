@@ -79,28 +79,30 @@ BUILTIN = [
     },
     {
         # Nagebouwd op basis van voor/na-voorbeelden van een "dark moody" Lightroom-pack:
-        # vooral ~2 stops donkerder, iets meer contrast, licht gedempte kleuren.
+        # vooral ~2 stops donkerder, licht gedempte kleuren, huid iets lichter gehouden.
         "id": "dark-luxe",
         "name": "Dark Luxe",
         "short": "DL",
         "params": {
-            "exposure": -95, "contrast": 10, "highlights": 0, "shadows": -2,
-            "blacks": -8, "saturation": -8, "temperature": 3, "tint": 5,
-            "grain": 0, "vignette": 12, "sharpness": 0, "fade": 0,
+            "exposure": -100, "contrast": 6, "highlights": 0, "shadows": -2,
+            "blacks": -14, "saturation": -11, "temperature": 6, "tint": 12,
+            "grain": 0, "vignette": 7, "sharpness": 0, "fade": 0,
+            "orange_lum": 19,
         },
     },
     {
         # Nagebouwd op basis van voor/na-voorbeelden van een "gym" Lightroom-pack:
-        # donker en contrastrijk, diepe zwarten, warme bronzen huid, koele schaduwen.
+        # donker met diepe zwarten, de huid wordt juist opgelicht en bronzer (kleurtinten).
         "id": "gym-bronze",
         "name": "Gym Bronze",
         "short": "GB",
         "params": {
-            "exposure": -45, "contrast": 40, "highlights": -15, "shadows": -25,
-            "blacks": -35, "saturation": 8, "temperature": 22, "tint": 0,
-            "grain": 0, "vignette": 25, "sharpness": 10, "fade": 0,
-            "split_shadow": 15, "split_shadow_hue": 210,
-            "split_highlight": 15, "split_highlight_hue": 30,
+            "exposure": -60, "contrast": 17, "highlights": 68, "shadows": 17,
+            "blacks": -100, "saturation": -25, "temperature": 18, "tint": 10,
+            "grain": 0, "vignette": 5, "sharpness": 10, "fade": 0,
+            "orange_sat": 22, "orange_lum": 60,
+            "split_shadow": 18, "split_shadow_hue": 198,
+            "split_highlight": 18, "split_highlight_hue": 95,
         },
     },
 ]

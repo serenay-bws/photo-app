@@ -14,6 +14,11 @@ const SLIDERS = [
   { key: "saturation", label: "Verzadiging", min: -100, max: 100 },
   { key: "temperature", label: "Temperatuur", min: -100, max: 100 },
   { key: "tint", label: "Tint", min: -100, max: 100 },
+  { group: "Kleurtinten" },
+  { key: "orange_sat", label: "Huid / oranje verzadiging", min: -100, max: 100 },
+  { key: "orange_lum", label: "Huid / oranje helderheid", min: -100, max: 100 },
+  { key: "green_sat", label: "Groen verzadiging", min: -100, max: 100 },
+  { key: "blue_sat", label: "Blauw verzadiging", min: -100, max: 100 },
   { group: "Effecten" },
   { key: "sharpness", label: "Scherpte", min: 0, max: 100 },
   { key: "grain", label: "Korrel", min: 0, max: 100 },
@@ -162,7 +167,7 @@ try {
   renderer = new Renderer(view);
   thumbRenderer = new Renderer(document.createElement("canvas"));
 } catch (e) {
-  document.body.innerHTML = `<div style="padding:40px;text-align:center">Deze browser ondersteunt geen WebGL.<br>Probeer Chrome, Edge, Firefox of Safari.<br><br><small>${escapeHtml(e.message)}</small></div>`;
+  document.body.innerHTML = `<div style="padding:40px;text-align:center">De foto-weergave kon niet starten in deze browser.<br>Probeer Chrome, Edge, Firefox of Safari.<br><br><small>${escapeHtml(e.message)}</small></div>`;
   throw e;
 }
 
@@ -286,6 +291,12 @@ function renderPresetStrip() {
     el.onclick = () => selectPreset(pr.id);
     strip.append(el);
   }
+  const copy = document.createElement("button");
+  copy.className = "preset";
+  copy.innerHTML = `<div class="tile"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="11" height="13" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v11"/><path d="M7 15l2.5-3 2 2.2L13 12"/></svg></div><span class="name">Kopieer</span>`;
+  copy.title = "Kies een voorbeeldfoto en neem de look over";
+  copy.onclick = () => current() && $("#ref-input").click();
+  strip.append(copy);
   const add = document.createElement("button");
   add.className = "preset";
   add.innerHTML = `<div class="tile"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><span class="name">Opslaan</span>`;
@@ -346,6 +357,31 @@ async function savePreset() {
     toast(e.message, { error: true });
   }
 }
+
+$("#ref-input").onchange = async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  const p = current();
+  if (!file || !p) return;
+  setBusy("Look van het voorbeeld overnemen...");
+  try {
+    const fd = new FormData();
+    fd.append("reference", file, file.name);
+    const res = await api("POST", `/api/photos/${p.id}/match`, fd);
+    await loadPresets();
+    const st = curState();
+    st.preset = res.preset.id;
+    st.strength = 100;
+    st.adjust = {};
+    changed();
+    toast(`Look overgenomen als “${res.preset.name}”: ${res.summary}. Met de sterkte-balk stel je hem bij.`, { ms: 7000 });
+    $(`#preset-strip .preset[data-id="${res.preset.id}"]`)?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  } catch (err) {
+    toast(`Look kopiëren mislukt: ${err.message}`, { error: true });
+  } finally {
+    setBusy(null);
+  }
+};
 
 async function deletePreset(pr) {
   const ok = await modal({
@@ -546,7 +582,7 @@ function renderFilm() {
     el.className = "thumb" + (p.id === app.currentId ? " active" : "");
     el.title = p.name;
     el.innerHTML = `<img src="${p.thumb_url}" alt="" draggable="false">`;
-    if (p.upscaled) el.insertAdjacentHTML("beforeend", `<span class="tag">${p.upscaled}×</span>`);
+    if (p.upscaled) el.insertAdjacentHTML("beforeend", `<span class="tag">${p.upscaled === 1 ? "AI" : p.upscaled + "×"}</span>`);
     if (p.job && (p.job.status === "running" || p.job.status === "queued")) {
       const txt = p.job.status === "queued" ? "wacht" : `${Math.round(p.job.progress * 100)}%`;
       el.insertAdjacentHTML("beforeend", `<span class="ring">${txt}</span>`);
@@ -659,7 +695,9 @@ function syncUpscale() {
     $("#btn-up-reset").hidden = true;
     return;
   }
-  $("#up-size").innerHTML = p.upscaled
+  $("#up-size").innerHTML = p.upscaled === 1
+    ? `Nu: <b>${fmtSize(p.width, p.height)}</b> <span class="muted">(AI-verbeterd)</span>`
+    : p.upscaled
     ? `Nu: <b>${fmtSize(p.width, p.height)}</b> <span class="muted">(${p.upscaled}× van ${fmtSize(p.orig_width, p.orig_height)})</span>`
     : `Nu: <b>${fmtSize(p.width, p.height)}</b> <span class="muted">(origineel)</span>`;
   for (const f of ["2", "4"]) {
@@ -680,7 +718,7 @@ function syncUpscale() {
     const pct = Math.round(job.progress * 100);
     $("#up-text").textContent = job.status === "queued"
       ? job.message || "In de wachtrij..."
-      : `${job.factor}× upscalen — ${pct}% ${job.eta ? "· " + fmtTime(job.eta) : ""}`;
+      : `${job.factor === 1 ? "AI verbeteren" : job.factor + "× upscalen"} — ${pct}% ${job.eta ? "· " + fmtTime(job.eta) : ""}`;
   }
 }
 
@@ -700,7 +738,7 @@ $$("[data-batch-factor]").forEach((b) => (b.onclick = async () => {
   const f = Number(b.dataset.batchFactor);
   if (!app.photos.length) return;
   for (const p of app.photos) await startUpscale(p, f);
-  toast(`${app.photos.length} foto's staan in de wachtrij voor ${f}×`);
+  toast(`${app.photos.length} foto's staan in de wachtrij voor ${f === 1 ? "AI verbeteren" : f + "×"}`);
 }));
 $("#btn-up-reset").onclick = async () => {
   const p = current();
@@ -727,7 +765,7 @@ async function poll() {
       Object.assign(p, { ...fresh, state: p.state });
       if (fresh.job && (fresh.job.status === "running" || fresh.job.status === "queued")) active = true;
       if (prevJob && prevJob.status !== fresh.job?.status && fresh.job?.status === "done") {
-        toast(`${p.name}: ${fresh.job.factor}× upscalen klaar`);
+        toast(`${p.name}: ${fresh.job.factor === 1 ? "AI verbeteren" : fresh.job.factor + "× upscalen"} klaar`);
       }
       if (fresh.job?.status === "error" && prevJob?.status !== "error") toast(fresh.job.message, { error: true, ms: 7000 });
       if (p.id === app.currentId && fresh.version !== app.loadedVersion) showPhoto(p.id);

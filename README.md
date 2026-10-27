@@ -64,18 +64,30 @@ Tip: op de iPhone kun je via **Deel → Zet op beginscherm** een icoontje maken.
   zelf de best passende preset plus correcties. Daarna kun je alles nog aanpassen.
 - **Bewerk:** schuifregelaars voor belichting, contrast, hoge lichten,
   schaduwen, zwarten, fade, verzadiging, temperatuur, tint, scherpte, korrel en
-  vignet. **Dubbelklik** op een regelaar om hem terug te zetten.
+  vignet. Onder **Kleurtinten** pas je alleen de huid/oranje tinten, het groen of
+  het blauw aan. **Dubbelklik** op een regelaar om hem terug te zetten.
+- **Kopieer look:** tik op **Kopieer** (achter de presets) en kies een
+  voorbeeldfoto waarvan je de stijl mooi vindt, bijvoorbeeld een screenshot van
+  Instagram. De app meet licht, contrast, kleuren en huidtinten van het voorbeeld
+  en maakt er een nieuwe preset van ("Look 1", "Look 2", ...) die je op al je
+  foto's kunt gebruiken. Werkt het best als het voorbeeld een vergelijkbare
+  foto is (bv. ook een portret).
 - **Voor/na:** klik op **Voor/na** en sleep de lijn over de foto. Of houd de foto
   even ingedrukt om het origineel te zien.
 - **Eigen preset:** stel alles in zoals je wilt en klik op **Opslaan als preset**
   (of op het **+** achter de presets). Verwijderen: beweeg met de muis over je
   preset en klik op het kruisje (op de telefoon: lang indrukken).
+- **AI verbeteren:** in het tabblad *Upscale*. Real-ESRGAN maakt je foto scherper
+  en haalt ruis en JPG-blokjes weg, maar het formaat blijft gelijk. Je presets en
+  bewerkingen blijven gewoon staan; ze worden er daarna overheen gelegd.
 - **Upscale:** kies **2×** of **4×**. De AI voegt echt detail toe in plaats van de
   foto alleen groter te maken. Met **Alles 2×/4×** doe je al je foto's achter
   elkaar. Heeft je computer een geschikte videokaart, dan gaat het snel; zonder
   videokaart werkt het ook, alleen trager (een gewone telefoonfoto duurt dan
   ongeveer 1 à 2 minuten). Foto's worden maximaal 8192 pixels breed.
-- **Exporteren:** klik op **Exporteer**. Je krijgt een JPG in hoge kwaliteit (95%).
+- **Exporteren:** klik op **Exporteer**. Je krijgt een JPG in hoge kwaliteit (97%,
+  volle resolutie, zonder kleurstreepjes in donkere verlopen). Presets maken je
+  foto nooit kleiner of waziger.
   Bij meerdere foto's kies je *Alle foto's met de huidige instellingen* (batch).
   Op je computer komen de foto's in de map **Afbeeldingen → Fotostudio**
   (klik op *Open map*). Op je telefoon worden ze gedownload (bij meerdere

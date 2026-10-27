@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from . import auto, presets, store
+from . import auto, match, presets, store
 from .config import DATA_DIR, EXPORTS_DIR, JPEG_QUALITY, STATIC_DIR
 from .edits import apply_edits, effective_params
 from .imaging import open_rgb, save_jpeg
@@ -70,12 +70,15 @@ def lan_ip():
 
 def _photo_json(meta):
     job = upscaler.job_for_photo(meta["id"])
+    if job and job["status"] == "done":
+        # meta kan net vóór het afronden gelezen zijn; nu is hij definitief
+        meta = store.get_meta(meta["id"])
     out = dict(meta)
     v = meta.get("version", 1)
     out["preview_url"] = f"/api/photos/{meta['id']}/preview?v={v}"
     out["thumb_url"] = f"/api/photos/{meta['id']}/thumb?v={v}"
     out["targets"] = {
-        str(f): target_size(meta["orig_width"], meta["orig_height"], f) for f in (2, 4)
+        str(f): target_size(meta["orig_width"], meta["orig_height"], f) for f in (1, 2, 4)
     }
     out["job"] = (
         {k: job.get(k) for k in ("id", "status", "progress", "message", "eta", "factor")}
@@ -180,8 +183,8 @@ class UpscaleBody(BaseModel):
 
 @app.post("/api/photos/{photo_id}/upscale")
 def upscale(photo_id: str, body: UpscaleBody):
-    if body.factor not in (2, 4):
-        raise HTTPException(400, "Kies 2x of 4x")
+    if body.factor not in (1, 2, 4):
+        raise HTTPException(400, "Kies 1x (verbeteren), 2x of 4x")
     store.get_meta(photo_id)
     job = upscaler.job_for_photo(photo_id)
     if job and job["status"] in ("queued", "running"):
@@ -201,6 +204,21 @@ def reset_upscale(photo_id: str):
 def auto_adjust(photo_id: str):
     img, _ = open_rgb(store.file_path(photo_id, "preview"))
     return auto.suggest(img)
+
+
+@app.post("/api/photos/{photo_id}/match")
+async def match_look(photo_id: str, reference: UploadFile = File(...)):
+    """Kopieer de look van een voorbeeldfoto en bewaar die als eigen preset."""
+    data = await reference.read()
+    try:
+        ref, _ = open_rgb(data)
+    except Exception:
+        raise HTTPException(400, "Dat voorbeeld is geen geldige foto")
+    img, _ = open_rgb(store.file_path(photo_id, "preview"))
+    params, _before, _after = await _run_sync(match.match_look, img, ref)
+    looks = [p for p in presets.all_presets() if p["name"].startswith("Look ")]
+    preset = presets.add_custom(f"Look {len(looks) + 1}", params)
+    return {"preset": preset, "summary": match.describe(params)}
 
 
 @app.get("/api/presets")
@@ -250,7 +268,9 @@ def export(body: ExportBody):
     for pid in body.photo_ids:
         meta, img = render_export(pid, body.state, by_id)
         name = _safe_name(meta["name"])
-        if meta.get("upscaled"):
+        if meta.get("upscaled") == 1:
+            name += "_ai"
+        elif meta.get("upscaled"):
             name += f"_{meta['upscaled']}x"
         fname = f"{name}_edit.jpg"
         i = 2

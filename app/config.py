@@ -18,7 +18,7 @@ PREVIEW_LONG = 1600
 THUMB_LONG = 360
 # Na upscalen nooit groter dan dit (lange zijde, in pixels)
 MAX_UPSCALE_LONG = int(os.environ.get("FOTOSTUDIO_MAX_SIDE", 8192))
-JPEG_QUALITY = 95
+JPEG_QUALITY = 97
 
 for _d in (PHOTOS_DIR, EXPORTS_DIR, BIN_DIR):
     _d.mkdir(parents=True, exist_ok=True)
