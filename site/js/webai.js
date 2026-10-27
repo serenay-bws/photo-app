@@ -39,16 +39,22 @@ export function hasWebGPU() {
 export function load(onStatus) {
   if (!sessionPromise) {
     sessionPromise = (async () => {
-      onStatus?.("AI-model downloaden (eenmalig ±35 MB)...");
+      onStatus?.("AI-model downloaden (eenmalig ±33 MB)... 0%");
+      const TOTAL = 33_200_000; // ongeveer: wasm + model
+      let got = 0;
+      const onBytes = (n) => {
+        got += n;
+        onStatus?.(`AI-model downloaden (eenmalig ±33 MB)... ${Math.min(99, Math.round((got / TOTAL) * 100))}%`);
+      };
       const ort = await import(VENDOR + "ort.min.mjs");
-      const parts = await Promise.all(WASM_PARTS.map((p) => fetchBuffer(VENDOR + p)));
+      const parts = await Promise.all(WASM_PARTS.map((p) => fetchBuffer(VENDOR + p, onBytes)));
       const wasm = new Uint8Array(parts.reduce((s, p) => s + p.length, 0));
       let o = 0;
       for (const p of parts) { wasm.set(p, o); o += p.length; }
       ort.env.wasm.wasmBinary = wasm.buffer;
       ort.env.wasm.wasmPaths = VENDOR;
       ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 2) : 1;
-      const model = await fetchBuffer(MODEL_URL);
+      const model = await fetchBuffer(MODEL_URL, onBytes);
       onStatus?.("AI starten...");
       let session = null;
       if (hasWebGPU()) {

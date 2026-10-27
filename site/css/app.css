@@ -334,3 +334,14 @@ input, textarea { user-select: text; -webkit-user-select: text; }
   width: 100%; border-radius: 8px; display: block; background: var(--bg);
   -webkit-touch-callout: default; user-select: auto; -webkit-user-select: auto; pointer-events: auto;
 }
+
+.up-btn.selected { border-color: var(--text); background: #26262a; }
+.up-start { width: 100%; justify-content: center; height: 44px; font-size: 15px; }
+.stage-job {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 5;
+  width: min(320px, calc(100% - 32px)); padding: 10px 14px; border-radius: 14px;
+  background: rgba(0,0,0,.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  font-size: 12px; color: #eee; pointer-events: none;
+}
+.stage-job .bar { height: 3px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 7px; }
+.stage-job .bar i { display: block; height: 100%; width: 0; background: #fff; transition: width .4s; }

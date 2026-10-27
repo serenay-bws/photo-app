@@ -233,6 +233,7 @@ new ResizeObserver(layoutFrame).observe($("#stage"));
 async function showPhoto(id) {
   if (pendingSave) await flushSave();
   app.currentId = id;
+  app.upChoice = null;
   const p = current();
   renderFilm();
   if (!p) {
@@ -736,20 +737,32 @@ function syncUpscale() {
   }
   const job = p.job;
   const busy = job && (job.status === "running" || job.status === "queued");
+  if (busy || p.upscale_note) app.upChoice = null;
   btns.forEach((b) => {
     b.disabled = !!busy || !!p.upscale_note;
     b.classList.toggle("done", String(p.upscaled) === b.dataset.factor);
+    b.classList.toggle("selected", String(app.upChoice) === b.dataset.factor);
   });
+  const start = $("#up-start");
+  start.hidden = !app.upChoice;
+  if (app.upChoice) {
+    const [w, h] = p.targets[String(app.upChoice)];
+    start.textContent = app.upChoice === 1
+      ? "Start AI verbeteren"
+      : `Start ${app.upChoice}× upscalen (${fmtSize(w, h)})`;
+  }
   $("#up-note").hidden = !p.upscale_note;
   $("#up-note").textContent = p.upscale_note || "";
   $("#btn-up-reset").hidden = !p.upscaled || busy;
   $("#up-progress").hidden = !busy;
+  $("#stage-job").hidden = !busy;
   if (busy) {
-    $("#up-bar").style.width = `${Math.round(job.progress * 100)}%`;
     const pct = Math.round(job.progress * 100);
-    $("#up-text").textContent = job.status === "queued" || (job.progress === 0 && job.message)
+    const text = job.status === "queued" || (job.progress === 0 && job.message)
       ? job.message || "In de wachtrij..."
       : `${job.factor === 1 ? "AI verbeteren" : job.factor + "× upscalen"} — ${pct}% ${job.eta ? "· " + fmtTime(job.eta) : ""}`;
+    $("#up-bar").style.width = $("#stage-job-bar").style.width = `${pct}%`;
+    $("#up-text").textContent = $("#stage-job-text").textContent = text;
   }
 }
 
@@ -764,7 +777,20 @@ async function startUpscale(photo, factor) {
   }
 }
 
-$$(".up-btn").forEach((b) => (b.onclick = () => current() && startUpscale(current(), Number(b.dataset.factor))));
+// eerst kiezen (AI / 2× / 4×), dan op Start tikken
+$$(".up-btn").forEach((b) => (b.onclick = () => {
+  const f = Number(b.dataset.factor);
+  app.upChoice = app.upChoice === f ? null : f;
+  syncUpscale();
+}));
+$("#up-start").onclick = () => {
+  const p = current();
+  if (!p || !app.upChoice) return;
+  const f = app.upChoice;
+  app.upChoice = null;
+  toast(f === 1 ? "AI verbeteren gestart" : `${f}× upscalen gestart — je ziet de voortgang op de foto`);
+  startUpscale(p, f);
+};
 $$("[data-batch-factor]").forEach((b) => (b.onclick = async () => {
   const f = Number(b.dataset.batchFactor);
   const todo = app.photos.filter((p) => !p.upscale_note);
