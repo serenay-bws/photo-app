@@ -17,7 +17,7 @@ const RANGES = {
   exposure: [-100, 100], contrast: [-100, 100], highlights: [-100, 100], shadows: [-100, 100],
   blacks: [-100, 100], saturation: [-100, 100], temperature: [-100, 100], tint: [-100, 100],
   grain: [0, 100], vignette: [0, 100], sharpness: [0, 100], fade: [0, 100],
-  orange_sat: [-100, 100], orange_lum: [-100, 100], green_sat: [-100, 100], blue_sat: [-100, 100],
+  orange_sat: [-100, 100], orange_lum: [-100, 100], yellow_sat: [-100, 100], orange_hue: [-100, 100], green_hue: [-100, 100], blue_hue: [-100, 100], green_sat: [-100, 100], blue_sat: [-100, 100],
   split_shadow: [0, 100], split_highlight: [0, 100],
 };
 const HUES = { split_shadow_hue: 210, split_highlight_hue: 40 };

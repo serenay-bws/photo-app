@@ -4,6 +4,7 @@ import json
 import re
 import threading
 import uuid
+from pathlib import Path
 
 from .config import PRESETS_FILE
 from .edits import clean_params
@@ -106,6 +107,16 @@ BUILTIN = [
         },
     },
 ]
+
+for _p in BUILTIN:
+    _p["group"] = "Basis"
+
+# Collectie: looks nagemaakt op basis van voor/na-voorbeelden van Lightroom-packs
+# (gegenereerd met tools/build_collection.py)
+_COLLECTION = Path(__file__).with_name("presets_collection.json")
+if _COLLECTION.exists():
+    for _c in json.loads(_COLLECTION.read_text(encoding="utf-8")):
+        BUILTIN.append({**_c, "group": "Collectie"})
 
 for _p in BUILTIN:
     _p["params"] = clean_params(_p["params"])

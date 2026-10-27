@@ -52,7 +52,7 @@ def web_index():
 def presets_json():
     from app.presets import BUILTIN
 
-    return json.dumps([{k: p[k] for k in ("id", "name", "short", "params", "builtin")} for p in BUILTIN],
+    return json.dumps([{k: p[k] for k in ("id", "name", "short", "params", "builtin", "group")} for p in BUILTIN],
                       ensure_ascii=False, indent=1)
 
 

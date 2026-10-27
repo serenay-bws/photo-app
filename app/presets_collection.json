@@ -1,0 +1,663 @@
+[
+ {
+  "id": "col-bright-airy-presets",
+  "name": "Bright & Airy",
+  "short": "BA",
+  "params": {
+   "exposure": 32,
+   "contrast": -11,
+   "highlights": 1,
+   "shadows": -40,
+   "blacks": 56,
+   "saturation": -8,
+   "temperature": -4,
+   "tint": -44,
+   "vignette": 10,
+   "fade": 38,
+   "orange_sat": 10,
+   "orange_lum": 14,
+   "yellow_sat": -97,
+   "green_sat": -16,
+   "split_shadow": 18,
+   "split_highlight": 19,
+   "split_shadow_hue": 341,
+   "split_highlight_hue": 264
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 38.9,
+   "rmse_after": 14.3
+  }
+ },
+ {
+  "id": "col-candy-preset",
+  "name": "Candy",
+  "short": "C",
+  "params": {
+   "exposure": 24,
+   "contrast": -15,
+   "highlights": -17,
+   "shadows": -20,
+   "blacks": 40,
+   "saturation": 21,
+   "temperature": 17,
+   "tint": -3,
+   "fade": 26,
+   "orange_sat": -8,
+   "orange_lum": 1,
+   "yellow_sat": 2,
+   "green_sat": -11,
+   "blue_sat": 11,
+   "split_shadow": 56,
+   "split_highlight": 40,
+   "split_shadow_hue": 330,
+   "split_highlight_hue": 308
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 24.9,
+   "rmse_after": 11.6
+  }
+ },
+ {
+  "id": "col-cherry-presets",
+  "name": "Cherry",
+  "short": "C",
+  "params": {
+   "exposure": 14,
+   "contrast": -7,
+   "highlights": -40,
+   "shadows": -13,
+   "blacks": 59,
+   "saturation": 48,
+   "temperature": 63,
+   "tint": 47,
+   "vignette": 10,
+   "fade": 1,
+   "orange_sat": -58,
+   "orange_lum": 46,
+   "yellow_sat": -23,
+   "green_sat": -3,
+   "blue_sat": 9,
+   "split_shadow": 32,
+   "split_highlight": 24,
+   "split_shadow_hue": 9,
+   "split_highlight_hue": 191
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 35.0,
+   "rmse_after": 20.0
+  }
+ },
+ {
+  "id": "col-clean-presets",
+  "name": "Clean",
+  "short": "C",
+  "params": {
+   "exposure": 30,
+   "contrast": -11,
+   "highlights": -36,
+   "shadows": -26,
+   "blacks": 40,
+   "saturation": 23,
+   "temperature": -9,
+   "tint": -5,
+   "fade": 20,
+   "orange_sat": -13,
+   "orange_lum": -9,
+   "yellow_sat": -87,
+   "green_sat": -5,
+   "blue_sat": 13,
+   "split_shadow": 5,
+   "split_highlight": 10,
+   "split_shadow_hue": 314,
+   "split_highlight_hue": 246
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 23.9,
+   "rmse_after": 14.3
+  }
+ },
+ {
+  "id": "col-creamy-presets",
+  "name": "Creamy",
+  "short": "C",
+  "params": {
+   "exposure": 57,
+   "contrast": -21,
+   "highlights": -16,
+   "shadows": -55,
+   "blacks": 59,
+   "saturation": 68,
+   "temperature": 62,
+   "tint": 52,
+   "vignette": 9,
+   "fade": 88,
+   "orange_sat": 24,
+   "orange_lum": 16,
+   "yellow_sat": -3,
+   "green_sat": -1,
+   "blue_sat": 2,
+   "split_shadow": 100,
+   "split_highlight": 34,
+   "split_shadow_hue": 33,
+   "split_highlight_hue": 180
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 58.8,
+   "rmse_after": 19.3
+  }
+ },
+ {
+  "id": "col-dark-coffee-preset-free",
+  "name": "Dark Coffee",
+  "short": "DC",
+  "params": {
+   "exposure": -41,
+   "contrast": 9,
+   "highlights": 88,
+   "shadows": 22,
+   "blacks": -47,
+   "saturation": -3,
+   "temperature": 72,
+   "tint": -26,
+   "orange_sat": -11,
+   "orange_lum": -20,
+   "yellow_sat": -20,
+   "green_sat": -10,
+   "blue_sat": -8,
+   "split_shadow": 35,
+   "split_highlight": 7,
+   "split_shadow_hue": 319,
+   "split_highlight_hue": 185
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 40.3,
+   "rmse_after": 20.0
+  }
+ },
+ {
+  "id": "col-dreamy-presets",
+  "name": "Dreamy",
+  "short": "D",
+  "params": {
+   "exposure": 70,
+   "contrast": -46,
+   "highlights": -30,
+   "shadows": -52,
+   "blacks": 57,
+   "saturation": 21,
+   "temperature": -3,
+   "tint": -4,
+   "vignette": 5,
+   "fade": 24,
+   "orange_sat": 33,
+   "orange_lum": 5,
+   "yellow_sat": 5,
+   "green_sat": 30,
+   "blue_sat": -19,
+   "split_shadow": 11,
+   "split_highlight": 44,
+   "split_shadow_hue": 330,
+   "split_highlight_hue": 314
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 47.8,
+   "rmse_after": 16.8
+  }
+ },
+ {
+  "id": "col-matcha-preset",
+  "name": "Matcha",
+  "short": "M",
+  "params": {
+   "exposure": 40,
+   "contrast": -17,
+   "highlights": -9,
+   "shadows": -58,
+   "blacks": 86,
+   "saturation": 37,
+   "temperature": -4,
+   "tint": -22,
+   "vignette": 5,
+   "fade": 57,
+   "orange_sat": 31,
+   "orange_lum": -2,
+   "yellow_sat": -43,
+   "green_sat": 88,
+   "blue_sat": -46,
+   "split_shadow": 22,
+   "split_highlight": 15,
+   "split_shadow_hue": 79,
+   "split_highlight_hue": 307
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 39.1,
+   "rmse_after": 15.0
+  }
+ },
+ {
+  "id": "col-midnight-presets",
+  "name": "Midnight",
+  "short": "M",
+  "params": {
+   "exposure": 53,
+   "contrast": -3,
+   "highlights": -31,
+   "shadows": -27,
+   "blacks": 68,
+   "saturation": 3,
+   "temperature": -70,
+   "tint": 7,
+   "vignette": 29,
+   "fade": 9,
+   "orange_sat": 15,
+   "orange_lum": 8,
+   "yellow_sat": -26,
+   "green_sat": 4,
+   "blue_sat": 10,
+   "split_shadow": 16,
+   "split_highlight": 8,
+   "split_shadow_hue": 224,
+   "split_highlight_hue": 298
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 31.1,
+   "rmse_after": 15.2
+  }
+ },
+ {
+  "id": "col-pastel-presets",
+  "name": "Pastel",
+  "short": "P",
+  "params": {
+   "exposure": 80,
+   "contrast": -33,
+   "highlights": -3,
+   "shadows": -99,
+   "blacks": 100,
+   "saturation": 23,
+   "temperature": -22,
+   "tint": 4,
+   "vignette": 7,
+   "fade": 100,
+   "orange_sat": -14,
+   "orange_lum": 18,
+   "yellow_sat": -73,
+   "green_sat": -35,
+   "blue_sat": 26,
+   "split_shadow": 41,
+   "split_highlight": 23,
+   "split_shadow_hue": 57,
+   "split_highlight_hue": 300
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 66.8,
+   "rmse_after": 17.8
+  }
+ },
+ {
+  "id": "col-peachy-presets",
+  "name": "Peachy",
+  "short": "P",
+  "params": {
+   "exposure": 81,
+   "contrast": -41,
+   "highlights": -49,
+   "shadows": -48,
+   "blacks": 43,
+   "saturation": 65,
+   "temperature": 72,
+   "tint": -22,
+   "fade": 29,
+   "orange_sat": -17,
+   "orange_lum": 10,
+   "yellow_sat": -100,
+   "green_sat": -50,
+   "blue_sat": -11,
+   "split_shadow": 65,
+   "split_highlight": 40,
+   "split_shadow_hue": 21,
+   "split_highlight_hue": 311
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 51.3,
+   "rmse_after": 14.9
+  }
+ },
+ {
+  "id": "col-retro-film-presets",
+  "name": "Retro Film",
+  "short": "RF",
+  "params": {
+   "exposure": -47,
+   "contrast": 3,
+   "highlights": 78,
+   "shadows": 27,
+   "blacks": -100,
+   "saturation": 10,
+   "temperature": 53,
+   "tint": -37,
+   "orange_sat": -22,
+   "orange_lum": 7,
+   "yellow_sat": -13,
+   "green_sat": -66,
+   "blue_sat": -95,
+   "split_shadow": 13,
+   "split_highlight": 45,
+   "split_shadow_hue": 9,
+   "split_highlight_hue": 298
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 44.2,
+   "rmse_after": 20.4
+  }
+ },
+ {
+  "id": "col-rich-black-presets",
+  "name": "Rich Black",
+  "short": "RB",
+  "params": {
+   "exposure": -46,
+   "contrast": 24,
+   "highlights": 100,
+   "shadows": 17,
+   "blacks": -54,
+   "saturation": 8,
+   "temperature": -42,
+   "tint": 33,
+   "vignette": 2,
+   "orange_sat": -35,
+   "orange_lum": -16,
+   "yellow_sat": -15,
+   "green_sat": -9,
+   "blue_sat": -100,
+   "split_shadow": 14,
+   "split_highlight": 30,
+   "split_shadow_hue": 203,
+   "split_highlight_hue": 60
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 46.6,
+   "rmse_after": 19.2
+  }
+ },
+ {
+  "id": "col-selfie-presets",
+  "name": "Selfie",
+  "short": "S",
+  "params": {
+   "exposure": 30,
+   "contrast": -12,
+   "highlights": -29,
+   "shadows": -30,
+   "blacks": 56,
+   "saturation": 18,
+   "temperature": -17,
+   "tint": 2,
+   "fade": 12,
+   "orange_sat": 8,
+   "orange_lum": 6,
+   "yellow_sat": -99,
+   "green_sat": -3,
+   "blue_sat": -9,
+   "split_shadow": 32,
+   "split_highlight": 17,
+   "split_shadow_hue": 26,
+   "split_highlight_hue": 211
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 28.4,
+   "rmse_after": 15.3
+  }
+ },
+ {
+  "id": "col-seoul-soft-presets",
+  "name": "Seoul Soft",
+  "short": "SS",
+  "params": {
+   "exposure": 34,
+   "contrast": -18,
+   "highlights": -31,
+   "shadows": -34,
+   "blacks": 79,
+   "saturation": 2,
+   "temperature": -11,
+   "tint": 24,
+   "vignette": 1,
+   "fade": 28,
+   "orange_sat": 11,
+   "orange_lum": 1,
+   "yellow_sat": 12,
+   "green_sat": 8,
+   "blue_sat": -16,
+   "split_shadow": 15,
+   "split_highlight": 10,
+   "split_shadow_hue": 13,
+   "split_highlight_hue": 71
+  },
+  "fit": {
+   "pairs": 8,
+   "rmse_before": 28.9,
+   "rmse_after": 10.4
+  }
+ },
+ {
+  "id": "col-spring-preset",
+  "name": "Spring",
+  "short": "S",
+  "params": {
+   "exposure": 31,
+   "contrast": -19,
+   "highlights": -32,
+   "shadows": -24,
+   "blacks": 28,
+   "saturation": 25,
+   "temperature": -10,
+   "tint": -25,
+   "fade": 24,
+   "orange_sat": 30,
+   "orange_lum": 4,
+   "yellow_sat": -4,
+   "green_sat": -27,
+   "blue_sat": -29,
+   "split_shadow": 6,
+   "split_highlight": 15,
+   "split_shadow_hue": 84,
+   "split_highlight_hue": 298
+  },
+  "fit": {
+   "pairs": 4,
+   "rmse_before": 26.5,
+   "rmse_after": 11.6
+  }
+ },
+ {
+  "id": "col-beach-girl-preset-free",
+  "name": "Summer",
+  "short": "S",
+  "params": {
+   "exposure": 15,
+   "contrast": -12,
+   "highlights": -34,
+   "shadows": -19,
+   "blacks": 34,
+   "saturation": 33,
+   "temperature": 72,
+   "tint": -44,
+   "fade": 26,
+   "orange_sat": -16,
+   "orange_lum": 16,
+   "yellow_sat": -100,
+   "green_sat": -14,
+   "blue_sat": -16,
+   "split_shadow": 32,
+   "split_highlight": 25,
+   "split_shadow_hue": 24,
+   "split_highlight_hue": 219
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 26.1,
+   "rmse_after": 14.0
+  }
+ },
+ {
+  "id": "col-that-girl-presets",
+  "name": "That Girl",
+  "short": "TG",
+  "params": {
+   "exposure": 99,
+   "contrast": -35,
+   "highlights": -10,
+   "shadows": -100,
+   "blacks": 100,
+   "saturation": 76,
+   "temperature": -2,
+   "tint": -26,
+   "vignette": 14,
+   "fade": 100,
+   "orange_sat": 26,
+   "orange_lum": -16,
+   "yellow_sat": -61,
+   "green_sat": 10,
+   "split_shadow": 52,
+   "split_highlight": 32,
+   "split_shadow_hue": 5,
+   "split_highlight_hue": 228
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 67.5,
+   "rmse_after": 22.0
+  }
+ },
+ {
+  "id": "col-photobooth-presets",
+  "name": "Timeless",
+  "short": "T",
+  "params": {
+   "exposure": 10,
+   "contrast": 17,
+   "highlights": 15,
+   "shadows": -11,
+   "blacks": 19,
+   "saturation": -75,
+   "temperature": 45,
+   "tint": -19,
+   "vignette": 26,
+   "orange_sat": -61,
+   "orange_lum": -39,
+   "yellow_sat": -4,
+   "split_shadow": 23,
+   "split_shadow_hue": 41,
+   "split_highlight_hue": 354
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 24.2,
+   "rmse_after": 12.9
+  }
+ },
+ {
+  "id": "col-vintage-film-presets",
+  "name": "Vintage Film",
+  "short": "VF",
+  "params": {
+   "exposure": -39,
+   "contrast": 6,
+   "highlights": 92,
+   "shadows": 12,
+   "blacks": -68,
+   "saturation": 21,
+   "temperature": 2,
+   "tint": -49,
+   "vignette": 16,
+   "orange_sat": -27,
+   "orange_lum": 16,
+   "yellow_sat": -33,
+   "green_sat": -19,
+   "blue_sat": -29,
+   "split_shadow": 83,
+   "split_highlight": 40,
+   "split_shadow_hue": 176,
+   "split_highlight_hue": 318
+  },
+  "fit": {
+   "pairs": 8,
+   "rmse_before": 34.6,
+   "rmse_after": 18.9
+  }
+ },
+ {
+  "id": "col-pastel-blue",
+  "name": "Pastel Blue",
+  "short": "PB",
+  "params": {
+   "exposure": 34,
+   "contrast": -15,
+   "highlights": -28,
+   "shadows": -23,
+   "blacks": 42,
+   "saturation": 28,
+   "temperature": -43,
+   "tint": -25,
+   "vignette": 5,
+   "fade": 34,
+   "orange_sat": 29,
+   "orange_lum": -5,
+   "yellow_sat": -47,
+   "green_sat": -10,
+   "blue_sat": 19,
+   "split_shadow": 51,
+   "split_highlight": 7,
+   "split_shadow_hue": 181,
+   "split_highlight_hue": 252
+  },
+  "fit": {
+   "pairs": 6,
+   "rmse_before": 30.7,
+   "rmse_after": 13.6
+  }
+ },
+ {
+  "id": "col-snowy-winter-preset",
+  "name": "Snowy Winter",
+  "short": "SW",
+  "params": {
+   "exposure": 100,
+   "contrast": -58,
+   "highlights": 17,
+   "shadows": -84,
+   "blacks": 100,
+   "saturation": 84,
+   "temperature": 62,
+   "tint": -7,
+   "fade": 100,
+   "orange_sat": -68,
+   "orange_lum": -37,
+   "yellow_sat": -21,
+   "split_shadow": 100,
+   "split_highlight": 12,
+   "split_shadow_hue": 60,
+   "split_highlight_hue": 294
+  },
+  "fit": {
+   "pairs": 4,
+   "rmse_before": 64.9,
+   "rmse_after": 32.2
+  }
+ }
+]

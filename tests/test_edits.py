@@ -121,3 +121,20 @@ def test_dither_avoids_banding_but_keeps_values():
     # zonder dithering zou elke kolom één vaste waarde hebben (harde streepjes)
     assert out[:, 150, 0].std() > 0
     assert out[:, 150, 0].max() - out[:, 150, 0].min() <= 1
+
+
+def test_hue_shift_moves_only_its_color():
+    img = np.zeros((4, 3, 3), np.uint8)
+    img[:, 0] = (60, 160, 70)    # groen
+    img[:, 1] = (128, 128, 128)  # grijs
+    img[:, 2] = (200, 120, 70)   # oranje
+    out = apply_edits(img, {"green_hue": 100}).astype(int)
+    assert out[0, 0, 2] > img[0, 0, 2] + 10          # groen -> blauwgroen
+    assert np.abs(out[0, 1] - 128).max() <= 1         # grijs blijft grijs
+    assert np.abs(out[0, 2] - img[0, 2]).max() <= 2   # oranje blijft
+
+
+def test_yellow_desaturates_beige():
+    beige = np.full((4, 4, 3), (195, 185, 146), np.uint8)
+    out = apply_edits(beige, {"yellow_sat": -100}).astype(int)
+    assert out[0, 0].max() - out[0, 0].min() < (195 - 146) * 0.5

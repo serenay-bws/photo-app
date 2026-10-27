@@ -20,7 +20,8 @@ uniform vec2 u_aspect;
 uniform float u_exposure, u_contrast, u_highlights, u_shadows, u_blacks, u_saturation;
 uniform float u_temperature, u_tint, u_grain, u_vignette, u_sharpness, u_fade;
 uniform float u_splitShadow, u_splitHighlight;
-uniform float u_orangeSat, u_orangeLum, u_greenSat, u_blueSat;
+uniform float u_orangeSat, u_orangeLum, u_yellowSat, u_greenSat, u_blueSat;
+uniform float u_orangeHue, u_greenHue, u_blueHue;
 uniform vec3 u_shadowColor, u_highlightColor;
 
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
@@ -56,15 +57,24 @@ vec3 hslAdjust(vec3 c) {
   else if (mx == c.g) h = (c.b - c.r) / safe + 2.0;
   else h = (c.r - c.g) / safe + 4.0;
   h *= 60.0;
-  float cw = smoothstep(0.02, 0.15, chroma);
+  float cw = smoothstep(0.04, 0.2, chroma / max(mx, 1e-6)) * smoothstep(0.0, 0.05, mx);
   float wo = rangeWeight(h, 30.0, 35.0) * cw;
+  float wy = rangeWeight(h, 55.0, 25.0) * cw;
   float wg = rangeWeight(h, 110.0, 50.0) * cw;
   float wb = rangeWeight(h, 215.0, 50.0) * cw;
-  float sat = 1.0 + (wo * u_orangeSat + wg * u_greenSat + wb * u_blueSat) / 100.0;
+  float sat = 1.0 + (wo * u_orangeSat + wy * u_yellowSat + wg * u_greenSat + wb * u_blueSat) / 100.0;
   float lum = 1.0 + wo * (u_orangeLum / 100.0 * 0.6);
   float L = luma(c);
-  c = L + (c - L) * sat;
-  return c * lum;
+  vec3 v = (c - L) * sat;
+  // tint verschuiven: draaien rond de grijs-as (max. 30 graden)
+  float angle = radians(30.0) * (wo * u_orangeHue + wg * u_greenHue + wb * u_blueHue) / 100.0;
+  if (angle != 0.0) {
+    float a = 0.5773502691896258;
+    vec3 cr = vec3(a * (v.z - v.y), a * (v.x - v.z), a * (v.y - v.x));
+    float d = a * (v.x + v.y + v.z);
+    v = v * cos(angle) + cr * sin(angle) + a * d * (1.0 - cos(angle));
+  }
+  return (L + v) * lum;
 }
 
 void main() {
@@ -105,7 +115,8 @@ void main() {
   c = L + (c - L) * (1.0 + u_saturation / 100.0);
 
   // 6b. kleurtinten (HSL)
-  if (u_orangeSat != 0.0 || u_orangeLum != 0.0 || u_greenSat != 0.0 || u_blueSat != 0.0) c = hslAdjust(c);
+  if (u_orangeSat != 0.0 || u_orangeLum != 0.0 || u_yellowSat != 0.0 || u_greenSat != 0.0 || u_blueSat != 0.0
+      || u_orangeHue != 0.0 || u_greenHue != 0.0 || u_blueHue != 0.0) c = hslAdjust(c);
 
   // 7. split toning
   L = clamp(luma(c), 0.0, 1.0);
@@ -217,7 +228,8 @@ export class Renderer {
     set("u_grain", p.grain); set("u_vignette", p.vignette);
     set("u_sharpness", p.sharpness); set("u_fade", p.fade);
     set("u_orangeSat", p.orange_sat); set("u_orangeLum", p.orange_lum);
-    set("u_greenSat", p.green_sat); set("u_blueSat", p.blue_sat);
+    set("u_orangeHue", p.orange_hue); set("u_greenHue", p.green_hue); set("u_blueHue", p.blue_hue);
+    set("u_yellowSat", p.yellow_sat); set("u_greenSat", p.green_sat); set("u_blueSat", p.blue_sat);
     set("u_splitShadow", p.split_shadow); set("u_splitHighlight", p.split_highlight);
     gl.uniform3fv(u.u_shadowColor, hueRGB(p.split_shadow_hue || 0));
     gl.uniform3fv(u.u_highlightColor, hueRGB(p.split_highlight_hue || 0));

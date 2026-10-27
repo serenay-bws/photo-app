@@ -17,8 +17,12 @@ const SLIDERS = [
   { group: "Kleurtinten" },
   { key: "orange_sat", label: "Huid / oranje verzadiging", min: -100, max: 100 },
   { key: "orange_lum", label: "Huid / oranje helderheid", min: -100, max: 100 },
+  { key: "orange_hue", label: "Huid / oranje tint", min: -100, max: 100 },
+  { key: "yellow_sat", label: "Geel / beige verzadiging", min: -100, max: 100 },
   { key: "green_sat", label: "Groen verzadiging", min: -100, max: 100 },
+  { key: "green_hue", label: "Groen tint", min: -100, max: 100 },
   { key: "blue_sat", label: "Blauw verzadiging", min: -100, max: 100 },
+  { key: "blue_hue", label: "Blauw tint", min: -100, max: 100 },
   { group: "Effecten" },
   { key: "sharpness", label: "Scherpte", min: 0, max: 100 },
   { key: "grain", label: "Korrel", min: 0, max: 100 },
@@ -276,7 +280,20 @@ function renderPresetStrip() {
   const strip = $("#preset-strip");
   strip.innerHTML = "";
   const none = { id: null, name: "Geen" };
-  for (const pr of [none, ...app.presets]) {
+  const groupOf = (pr) => (pr.id == null ? null : pr.builtin ? pr.group || "Basis" : "Mijn presets");
+  // eigen presets vooraan na "Geen", dan Basis, dan de Collectie
+  const order = { "Mijn presets": 0, Basis: 1, Collectie: 2 };
+  const sorted = [...app.presets].sort((a, b) => (order[groupOf(a)] ?? 3) - (order[groupOf(b)] ?? 3));
+  let lastGroup = null;
+  for (const pr of [none, ...sorted]) {
+    const g = groupOf(pr);
+    if (g && g !== lastGroup) {
+      const sep = document.createElement("div");
+      sep.className = "preset-group";
+      sep.textContent = g;
+      strip.append(sep);
+      lastGroup = g;
+    }
     const el = document.createElement("button");
     el.className = "preset";
     el.dataset.id = pr.id ?? "";

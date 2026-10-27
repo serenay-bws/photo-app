@@ -45,11 +45,16 @@ TONING = {
 HSL = {
     "orange_sat": (-100, 100),
     "orange_lum": (-100, 100),
+    "orange_hue": (-100, 100),
+    "yellow_sat": (-100, 100),
+    "green_hue": (-100, 100),
+    "blue_hue": (-100, 100),
     "green_sat": (-100, 100),
     "blue_sat": (-100, 100),
 }
 # kleurgebied: (middelste tint in graden, halve breedte)
 HSL_RANGES = {"orange": (30.0, 35.0), "green": (110.0, 50.0), "blue": (215.0, 50.0)}
+YELLOW_RANGE = (55.0, 25.0)  # geel/beige
 HUES = ("split_shadow_hue", "split_highlight_hue")
 SCALABLE = {**SLIDERS, **HSL, **TONING}
 PARAM_KEYS = list(SCALABLE) + list(HUES)
@@ -153,15 +158,29 @@ def _range_weight(h, center, half):
 
 
 def _hsl_adjust(c, p):
-    h, chroma_w = _hue_weights(c)
+    # zoals Lightroom: weging op relatieve verzadiging, dus ook in donkere tinten
+    h, _ = _hue_weights(c)
+    mx = np.max(c, axis=-1)
+    rel = (mx - np.min(c, axis=-1)) / np.maximum(mx, 1e-6)
+    chroma_w = _smoothstep(0.04, 0.2, rel) * _smoothstep(0.0, 0.05, mx)
     w_o = _range_weight(h, *HSL_RANGES["orange"]) * chroma_w
     w_g = _range_weight(h, *HSL_RANGES["green"]) * chroma_w
     w_b = _range_weight(h, *HSL_RANGES["blue"]) * chroma_w
-    sat = 1.0 + (w_o * p["orange_sat"] + w_g * p["green_sat"] + w_b * p["blue_sat"]) / 100.0
+    w_y = _range_weight(h, *YELLOW_RANGE) * chroma_w
+    sat = 1.0 + (w_o * p["orange_sat"] + w_y * p["yellow_sat"] + w_g * p["green_sat"] + w_b * p["blue_sat"]) / 100.0
     lum = 1.0 + w_o * (p["orange_lum"] / 100.0 * 0.6)
     L = _luma(c)[..., None]
-    c = L + (c - L) * sat[..., None]
-    return c * lum[..., None]
+    v = (c - L) * sat[..., None]
+    # tint verschuiven: draaien rond de grijs-as (max. 30 graden)
+    angle = np.radians(30.0) * (w_o * p["orange_hue"] + w_g * p["green_hue"] + w_b * p["blue_hue"]) / 100.0
+    if np.any(angle):
+        a = 1.0 / np.sqrt(3.0)
+        cos, sin = np.cos(angle)[..., None], np.sin(angle)[..., None]
+        vx, vy, vz = v[..., 0:1], v[..., 1:2], v[..., 2:3]
+        cross = np.concatenate([a * (vz - vy), a * (vx - vz), a * (vy - vx)], axis=-1)
+        dot = a * (vx + vy + vz)
+        v = v * cos + cross * sin + a * dot * (1.0 - cos)
+    return (L + v) * lum[..., None]
 
 
 class _Geometry:
@@ -248,7 +267,7 @@ def _process_rows(src, y0, y1, p, geo):
         c = L + (c - L) * (1.0 + p["saturation"] / 100.0)
 
     # 6b. kleurtinten (HSL)
-    if p["orange_sat"] or p["orange_lum"] or p["green_sat"] or p["blue_sat"]:
+    if any(p[k] for k in ("orange_sat", "orange_lum", "orange_hue", "yellow_sat", "green_sat", "green_hue", "blue_sat", "blue_hue")):
         c = _hsl_adjust(c, p)
 
     # 7. split toning

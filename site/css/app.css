@@ -345,3 +345,9 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 }
 .stage-job .bar { height: 3px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 7px; }
 .stage-job .bar i { display: block; height: 100%; width: 0; background: #fff; transition: width .4s; }
+
+.preset-group {
+  flex: none; align-self: stretch; display: flex; align-items: center; padding: 0 2px 22px 8px;
+  border-left: 1px solid var(--line); writing-mode: vertical-rl; transform: rotate(180deg);
+  font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--faint);
+}
