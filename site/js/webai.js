@@ -98,6 +98,7 @@ export async function upscale(src, outW, outH, onProgress, { tile = 192, pad = 1
   octx.imageSmoothingQuality = "high";
   const tmp = document.createElement("canvas");
   const tctx = tmp.getContext("2d");
+  if (!octx || !tctx) throw new Error("te weinig geheugen in de browser");
   const sx = outW / w, sy = outH / h;
   const tiles = [];
   for (let y = 0; y < h; y += tile) for (let x = 0; x < w; x += tile) tiles.push([x, y]);
@@ -145,5 +146,6 @@ export async function upscale(src, outW, outH, onProgress, { tile = 192, pad = 1
     onProgress?.((i + 1) / tiles.length);
     await new Promise((r) => setTimeout(r, 0));
   }
+  tmp.width = tmp.height = 0;
   return out;
 }

@@ -74,24 +74,38 @@ function loadImage(blob) {
   });
 }
 
-// Netjes verkleinen in stappen (voorkomt kartelige randen)
-function resized(img, w, h) {
-  let src = img, sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height;
-  while (sw / 2 >= w && sh / 2 >= h) {
-    const c = document.createElement("canvas");
-    c.width = Math.round(sw / 2);
-    c.height = Math.round(sh / 2);
-    const ctx = c.getContext("2d");
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(src, 0, 0, c.width, c.height);
-    src = c; sw = c.width; sh = c.height;
-  }
+// iPhones geven een webpagina weinig canvas-geheugen; canvassen die we niet meer
+// nodig hebben geven we daarom meteen terug (breedte/hoogte 0).
+function newCanvas(w, h) {
   const c = document.createElement("canvas");
   c.width = w;
   c.height = h;
   const ctx = c.getContext("2d");
+  if (!ctx) {
+    release(c);
+    throw new Error("te weinig geheugen in de browser; sluit andere tabbladen en probeer opnieuw");
+  }
+  ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
+  return [c, ctx];
+}
+
+export function release(...canvases) {
+  for (const c of canvases) if (c && c.getContext) { c.width = 0; c.height = 0; }
+}
+
+// Netjes verkleinen in stappen (voorkomt kartelige randen)
+function resized(img, w, h) {
+  let src = img, sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height;
+  while (sw / 2 >= w && sh / 2 >= h) {
+    const [c, ctx] = newCanvas(Math.round(sw / 2), Math.round(sh / 2));
+    ctx.drawImage(src, 0, 0, c.width, c.height);
+    if (src !== img) release(src);
+    src = c; sw = c.width; sh = c.height;
+  }
+  const [c, ctx] = newCanvas(w, h);
   ctx.drawImage(src, 0, 0, w, h);
+  if (src !== img) release(src);
   return c;
 }
 
@@ -105,8 +119,14 @@ const toBlob = (canvas, type, q) =>
 
 async function makePreviews(id, img) {
   const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-  await db.put("blobs", await toBlob(resized(img, ...fit(w, h, PREVIEW_LONG)), "image/jpeg", 0.9), `${id}:preview`);
-  await db.put("blobs", await toBlob(resized(img, ...fit(w, h, THUMB_LONG)), "image/jpeg", 0.85), `${id}:thumb`);
+  const preview = resized(img, ...fit(w, h, PREVIEW_LONG));
+  const thumb = resized(preview, ...fit(preview.width, preview.height, THUMB_LONG));
+  try {
+    await db.put("blobs", await toBlob(preview, "image/jpeg", 0.9), `${id}:preview`);
+    await db.put("blobs", await toBlob(thumb, "image/jpeg", 0.85), `${id}:thumb`);
+  } finally {
+    release(preview, thumb);
+  }
 }
 
 let gl = null;
@@ -186,9 +206,14 @@ async function runJob(job) {
     const el = (performance.now() - started) / 1000;
     if (f > 0.03) job.eta = Math.round((el / f) * (1 - f));
   });
+  release(src);
   job.message = "Opslaan...";
-  await db.put("blobs", await toBlob(out, "image/png"), `${meta.id}:working`);
-  await makePreviews(meta.id, out);
+  try {
+    await db.put("blobs", await toBlob(out, "image/png"), `${meta.id}:working`);
+    await makePreviews(meta.id, out);
+  } finally {
+    release(out);
+  }
   Object.assign(meta, { width: tw, height: th, upscaled: job.factor, version: meta.version + 1 });
   await db.put("photos", meta);
   Object.assign(job, { status: "done", progress: 1, message: "Klaar", eta: 0 });
@@ -236,6 +261,7 @@ async function exportPhotos({ photo_ids, state }) {
     const s = Math.min(1, max / Math.max(w, h), Math.sqrt(MAX_OUT_PIXELS / (w * h)));
     if (s < 1) { [w, h] = [Math.round(w * s), Math.round(h * s)]; img = resized(img, w, h); }
     r.setImage(img, w, h);
+    release(img);
     r.render(effective(state ?? meta.state, byId));
     const out = await toBlob(r.canvas, "image/jpeg", JPEG_QUALITY);
     let base = meta.name.replace(/\.[^.]+$/, "").replace(/[^\w-]+/g, "_") || "foto";
@@ -253,7 +279,9 @@ async function exportPhotos({ photo_ids, state }) {
 async function autoAdjust(id) {
   const img = await loadImage(await db.get("blobs", `${id}:preview`));
   const c = resized(img, ...fit(img.naturalWidth, img.naturalHeight, 512));
-  return suggest(c.getContext("2d").getImageData(0, 0, c.width, c.height).data);
+  const px = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+  release(c);
+  return suggest(px);
 }
 
 async function copyLook(id, form) {
@@ -262,10 +290,12 @@ async function copyLook(id, form) {
   try { ref = await loadImage(refFile); } catch { fail("Dat voorbeeld is geen geldige foto"); }
   const rc = resized(ref, ...fit(ref.naturalWidth, ref.naturalHeight, 300));
   const refPixels = rc.getContext("2d").getImageData(0, 0, rc.width, rc.height).data;
+  release(rc);
   const img = await loadImage(await db.get("blobs", `${id}:preview`));
   const small = resized(img, ...fit(img.naturalWidth, img.naturalHeight, 200));
   const r = renderers().match;
   r.setImage(small, small.width, small.height);
+  release(small);
   const params = await matchLook((p) => { r.render(p); return r.pixels(); }, refPixels);
   const customs = await db.all("presets");
   const n = customs.filter((p) => p.name.startsWith("Look ")).length + 1;

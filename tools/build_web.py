@@ -44,6 +44,8 @@ def web_index():
                         '<link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">')
     # geen "Telefoon"-knop: dit IS de telefoonversie
     html = html.replace('<button class="btn ghost" id="btn-phone"', '<button class="btn ghost" id="btn-phone" hidden')
+    # zonder .heic in "accept" zet de iPhone foto's automatisch om naar JPG
+    html = html.replace('accept="image/*,.heic,.heif"', 'accept="image/*"')
     return html
 
 
