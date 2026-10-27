@@ -58,6 +58,8 @@ Tip: op de iPhone kun je via **Deel → Zet op beginscherm** een icoontje maken.
   - *Cool Grey* — koel en ingetogen, editorial
   - *B&W Contrast* — zwart-wit met veel contrast
   - *Soft Matte* — zacht en mat
+  - *Dark Luxe* — veel donkerder, strak en clean (de donkere Instagram-look)
+  - *Gym Bronze* — donker en contrastrijk met een warme, bronzen huid
 - **Auto:** de app bekijkt helderheid, contrast en kleuren van je foto en kiest
   zelf de best passende preset plus correcties. Daarna kun je alles nog aanpassen.
 - **Bewerk:** schuifregelaars voor belichting, contrast, hoge lichten,

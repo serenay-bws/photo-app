@@ -77,6 +77,32 @@ BUILTIN = [
             "split_highlight": 10, "split_highlight_hue": 30,
         },
     },
+    {
+        # Nagebouwd op basis van voor/na-voorbeelden van een "dark moody" Lightroom-pack:
+        # vooral ~2 stops donkerder, iets meer contrast, licht gedempte kleuren.
+        "id": "dark-luxe",
+        "name": "Dark Luxe",
+        "short": "DL",
+        "params": {
+            "exposure": -95, "contrast": 10, "highlights": 0, "shadows": -2,
+            "blacks": -8, "saturation": -8, "temperature": 3, "tint": 5,
+            "grain": 0, "vignette": 12, "sharpness": 0, "fade": 0,
+        },
+    },
+    {
+        # Nagebouwd op basis van voor/na-voorbeelden van een "gym" Lightroom-pack:
+        # donker en contrastrijk, diepe zwarten, warme bronzen huid, koele schaduwen.
+        "id": "gym-bronze",
+        "name": "Gym Bronze",
+        "short": "GB",
+        "params": {
+            "exposure": -45, "contrast": 40, "highlights": -15, "shadows": -25,
+            "blacks": -35, "saturation": 8, "temperature": 22, "tint": 0,
+            "grain": 0, "vignette": 25, "sharpness": 10, "fade": 0,
+            "split_shadow": 15, "split_shadow_hue": 210,
+            "split_highlight": 15, "split_highlight_hue": 30,
+        },
+    },
 ]
 
 for _p in BUILTIN:
