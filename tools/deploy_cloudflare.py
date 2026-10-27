@@ -6,7 +6,9 @@ Volgorde (zo is de app nooit onbeveiligd bereikbaar):
   3. De map site/ uploaden (wrangler pages deploy)
   4. Controleren dat het adres om een login vraagt
 
-Nodig: omgevingsvariabele CLOUDFLARE_API_TOKEN met de rechten
+Nodig: een Cloudflare API-token met de rechten (óf als omgevingsvariabele
+CLOUDFLARE_API_TOKEN, óf als "network secret" voor api.cloudflare.com; dan voegt de
+proxy van de omgeving de sleutel zelf toe en ziet dit script hem nooit)
   Account → Cloudflare Pages: Edit
   Account → Access: Apps and Policies: Edit
   Account → Access: Organizations, Identity Providers, and Groups: Edit
@@ -32,7 +34,7 @@ def call(method, path, body=None, token=None):
     req = urllib.request.Request(
         API + path, method=method,
         data=json.dumps(body).encode() if body is not None else None,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", **({"Authorization": f"Bearer {token}"} if token else {})},
     )
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
@@ -50,9 +52,7 @@ def main():
     ap.add_argument("--email", required=True)
     ap.add_argument("--account", default=os.environ.get("CLOUDFLARE_ACCOUNT_ID"))
     args = ap.parse_args()
-    token = os.environ.get("CLOUDFLARE_API_TOKEN")
-    if not token:
-        sys.exit("CLOUDFLARE_API_TOKEN ontbreekt")
+    token = os.environ.get("CLOUDFLARE_API_TOKEN")  # leeg = proxy voegt hem toe
     api = lambda m, p, b=None: call(m, p, b, token)  # noqa: E731
 
     account = args.account
@@ -102,7 +102,9 @@ def main():
     print(f"Alleen {args.email} mag inloggen")
 
     # 3. Uploaden
-    env = {**os.environ, "CLOUDFLARE_ACCOUNT_ID": account}
+    env = {**os.environ, "CLOUDFLARE_ACCOUNT_ID": account, "WRANGLER_SEND_METRICS": "false",
+           # wrangler wil altijd een token zien; bij een network secret vervangt de proxy hem
+           "CLOUDFLARE_API_TOKEN": token or "via-proxy"}
     subprocess.run(["npx", "--yes", WRANGLER, "pages", "deploy", "site", "--project-name", args.project,
                     "--branch", "main", "--commit-dirty=true"], check=True, env=env)
 
