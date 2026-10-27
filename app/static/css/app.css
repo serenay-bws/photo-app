@@ -295,7 +295,7 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 
 /* ------------------------------------------------------------ mobiel */
 @media (max-width: 899px) {
-  .topbar { height: 50px; padding: 0 8px 0 14px; }
+  .topbar { height: 50px; padding-left: 14px; padding-right: 8px; }
   .actions .btn span { display: none; }
   .actions .btn { padding: 0 9px; }
   .actions .btn.primary span { display: inline; }
@@ -417,4 +417,24 @@ body[data-cropping="true"] .frame { cursor: move; }
   .tools { flex-wrap: wrap; overflow: visible; }
   .tool { min-width: 0; flex: 1 1 28%; }
   .tool-group { writing-mode: horizontal-tb; transform: none; flex-basis: 100%; padding: 8px 2px 0; }
+}
+
+/* iPhone (app op beginscherm): nooit onder de klok/batterij, en ruimte voor de inkeping */
+.topbar {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: max(14px, env(safe-area-inset-left, 0px));
+  padding-right: max(8px, env(safe-area-inset-right, 0px));
+}
+@media (max-width: 480px) {
+  .actions .btn.primary span { display: none; }
+  .actions .btn.primary { padding: 0 11px; margin-left: 4px; }
+}
+@media (max-width: 440px) {
+  .brand { display: none; }
+}
+/* op een telefoon kun je niet slepen */
+.empty .touch-only { display: none; }
+@media (hover: none) {
+  .empty .no-touch { display: none; }
+  .empty .touch-only { display: block; }
 }
