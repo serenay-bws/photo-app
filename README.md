@@ -45,6 +45,31 @@ upscalen gebeurt op je computer, je telefoon is alleen het scherm.
 
 Tip: op de iPhone kun je via **Deel → Zet op beginscherm** een icoontje maken.
 
+Op je telefoon log je in met een **wachtwoord**. Dat stel je in op je computer, via
+de knop **Telefoon**. Op de computer zelf hoef je nooit in te loggen.
+
+### Overal gebruiken (ook buiten de deur)
+
+1. Klik op je computer op **Telefoon**.
+2. Stel een **wachtwoord** in (minstens 8 tekens; kies iets dat je nergens anders gebruikt).
+3. Klik op **Overal bereikbaar maken**.
+4. Na een paar seconden verschijnt een adres zoals `https://iets-willekeurigs.trycloudflare.com`
+   met een QR-code. Scan die met je telefoon en log in.
+
+Dit gaat via een beveiligde **Cloudflare Tunnel**: je computer hoeft geen poorten open
+te zetten en de verbinding is versleuteld (https). Je foto's blijven op je computer
+staan; Cloudflare stuurt alleen het verkeer door. Je computer moet wel aanstaan en de
+app moet open zijn.
+
+- Na 5 foute wachtwoorden wordt dat apparaat 15 minuten geblokkeerd.
+- Nieuw wachtwoord instellen = iedereen wordt uitgelogd.
+- Het gratis adres verandert elke keer dat je de app start. Wil je een **vast adres**
+  (bv. `foto.jouwnaam.nl`)? Dan heb je een gratis Cloudflare-account en een eigen
+  domeinnaam nodig: maak in Cloudflare (*Zero Trust → Networks → Tunnels*) een tunnel
+  die wijst naar `http://localhost:8000` en plak de tunnel-token in de app onder
+  **Vast adres**.
+- Uitzetten kan altijd met **Overal bereikbaar uitzetten**.
+
 ## Zo werkt het
 
 - **Foto's toevoegen:** sleep ze in het venster of klik op **Foto's**. Meerdere

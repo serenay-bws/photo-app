@@ -8,6 +8,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Fotostudio</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body data-tab="presets" data-empty="true">
@@ -122,6 +124,24 @@
       <div id="modal-body"></div>
       <div class="modal-actions" id="modal-actions"></div>
     </div>
+  </div>
+
+  <div class="modal" id="share" hidden>
+    <div class="modal-card share-card">
+      <div id="share-body"></div>
+      <div class="modal-actions"><button class="btn primary" data-close>Sluiten</button></div>
+    </div>
+  </div>
+
+  <div class="login" id="login" hidden>
+    <form class="login-card" id="login-form" autocomplete="on">
+      <div class="brand">FOTOSTUDIO</div>
+      <p>Log in om je foto's te bewerken</p>
+      <input type="text" name="username" value="fotostudio" autocomplete="username" hidden>
+      <input type="password" id="login-pw" placeholder="Wachtwoord" autocomplete="current-password" required>
+      <button class="btn primary" type="submit">Inloggen</button>
+      <p class="err" id="login-msg"></p>
+    </form>
   </div>
 
   <div class="toasts" id="toasts"></div>

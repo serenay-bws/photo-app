@@ -41,7 +41,9 @@ def main():
 
     if os.environ.get("FOTOSTUDIO_NO_BROWSER") != "1":
         threading.Timer(1.5, lambda: webbrowser.open(local)).start()
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
+    os.environ["FOTOSTUDIO_ACTIVE_PORT"] = str(port)
+    # proxy_headers uit: we bepalen zelf of verkeer via de Cloudflare-tunnel komt
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning", proxy_headers=False)
 
 
 if __name__ == "__main__":

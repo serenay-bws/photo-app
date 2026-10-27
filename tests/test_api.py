@@ -15,7 +15,11 @@ from tests.helpers import jpeg_bytes, sample_image, sharp_image
 
 @pytest.fixture(scope="module")
 def client():
+    from app import auth
+
+    auth.set_password("testwachtwoord")
     with TestClient(app) as c:
+        assert c.post("/api/auth/login", json={"password": "testwachtwoord"}).status_code == 200
         yield c
 
 

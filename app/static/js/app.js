@@ -46,6 +46,10 @@ async function api(method, url, body) {
     opts.body = JSON.stringify(body);
   }
   const res = await fetch(url, opts);
+  if (res.status === 401 && !url.startsWith("/api/auth/")) {
+    showLogin();
+    throw new Error("Log eerst in");
+  }
   if (!res.ok) {
     let msg = res.statusText;
     try { msg = (await res.json()).detail || msg; } catch {}
@@ -823,17 +827,130 @@ async function doExport(mode) {
 
 // ------------------------------------------------------------------ telefoon
 
-$("#btn-phone").onclick = async () => {
-  const st = app.status || (await api("GET", "/api/status"));
-  const url = st.lan_url;
-  await modal({
-    html: url
-      ? `<h2>Openen op je telefoon</h2><p>Zorg dat je telefoon op hetzelfde wifi-netwerk zit en scan deze code met de camera:</p>
-         <img class="qr" src="/api/qr" alt="QR-code"><p class="url">${escapeHtml(url)}</p>
-         <p>Werkt het niet? Sta de app toe in de firewall van je computer (privé-netwerk).</p>`
-      : `<h2>Openen op je telefoon</h2><p>Deze computer lijkt niet met een netwerk verbonden.</p>`,
-    buttons: [{ label: "Sluiten", cls: "primary", value: true }],
+let shareTimer = null;
+$("#btn-phone").onclick = () => {
+  $("#share").hidden = false;
+  renderShare();
+};
+$("#share").addEventListener("click", (e) => {
+  if (e.target.id === "share" || e.target.closest("[data-close]")) {
+    $("#share").hidden = true;
+    clearTimeout(shareTimer);
+  }
+});
+
+async function renderShare() {
+  clearTimeout(shareTimer);
+  let st;
+  try {
+    st = app.status = await api("GET", "/api/status");
+  } catch {
+    return;
+  }
+  const t = st.tunnel;
+  const local = st.is_local;
+  const body = $("#share-body");
+  const lan = st.lan_url
+    ? `<img class="qr" src="/api/qr?target=lan" alt="QR-code"><p class="url">${escapeHtml(st.lan_url)}</p>`
+    : `<p>Deze computer lijkt niet met een netwerk verbonden.</p>`;
+  let pub;
+  if (t.state === "on" && t.url) {
+    pub = `<p class="ok">● Actief — overal bereikbaar, met wachtwoord</p>
+      <img class="qr" src="/api/qr?target=public&u=${encodeURIComponent(t.url)}" alt="QR-code"><p class="url">${escapeHtml(t.url)}</p>
+      ${t.mode === "quick" ? `<p>Dit adres verandert als je de app opnieuw start.${local ? " Wil je een vast adres? Zie <i>Vast adres</i> hieronder." : ""}</p>` : ""}`;
+  } else if (t.state === "starting") {
+    pub = `<p class="muted">Verbinden met Cloudflare… (de eerste keer wordt er ook iets gedownload)</p>`;
+  } else if (t.state === "error") {
+    pub = `<p class="err">${escapeHtml(t.message)}</p>`;
+  } else {
+    pub = `<p class="muted">Uit. Alleen bereikbaar op je eigen wifi.</p>`;
+  }
+  let controls = "";
+  if (local) {
+    controls = `
+      <div class="share-row">
+        <label>Wachtwoord ${st.password_set ? "(ingesteld)" : "(nog niet ingesteld)"}</label>
+        <div class="inline">
+          <input type="password" id="pw-new" placeholder="${st.password_set ? "Nieuw wachtwoord" : "Minstens 8 tekens"}" autocomplete="new-password">
+          <button class="btn small" id="pw-save">${st.password_set ? "Wijzigen" : "Instellen"}</button>
+        </div>
+      </div>
+      <div class="share-row">
+        <button class="btn ${t.enabled ? "" : "primary"}" id="tunnel-toggle" ${st.password_set ? "" : "disabled"}>
+          ${t.enabled ? "Overal bereikbaar uitzetten" : "Overal bereikbaar maken"}</button>
+        ${st.password_set ? "" : "<p class='tiny'>Stel eerst een wachtwoord in.</p>"}
+      </div>
+      <details class="share-row">
+        <summary>Vast adres (eigen Cloudflare-account)</summary>
+        <p>Maak in Cloudflare (Zero Trust → Networks → Tunnels) een tunnel aan, laat hem wijzen naar
+        <b>http://localhost:${location.port || 80}</b> en plak hier de tunnel-token en je adres.</p>
+        <input type="password" id="tunnel-token" placeholder="Tunnel-token" value="" autocomplete="off">
+        <input type="text" id="tunnel-host" placeholder="bv. foto.jouwdomein.nl" value="${escapeHtml(t.hostname || "")}">
+        <div class="inline"><button class="btn small" id="tunnel-token-save">Opslaan</button>
+        <button class="btn ghost small" id="tunnel-token-clear">Terug naar snel (willekeurig adres)</button></div>
+      </details>`;
+  } else {
+    controls = `<div class="share-row"><button class="btn small" id="logout">Uitloggen op dit apparaat</button></div>`;
+  }
+  body.innerHTML = `
+    <h2>Openen op je telefoon</h2>
+    <h3>Thuis (zelfde wifi)</h3>${lan}
+    <h3>Overal (via Cloudflare)</h3>${pub}${controls}`;
+
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  on("pw-save", async () => {
+    try {
+      await api("POST", "/api/auth/password", { password: $("#pw-new").value });
+      toast("Wachtwoord opgeslagen. Andere apparaten moeten opnieuw inloggen.");
+      renderShare();
+    } catch (e) { toast(e.message, { error: true }); }
   });
+  on("tunnel-toggle", async () => {
+    try { await api("POST", "/api/tunnel", { enabled: !t.enabled }); renderShare(); }
+    catch (e) { toast(e.message, { error: true }); }
+  });
+  on("tunnel-token-save", async () => {
+    try {
+      await api("POST", "/api/tunnel", { enabled: true, token: $("#tunnel-token").value, hostname: $("#tunnel-host").value });
+      toast("Vaste tunnel opgeslagen");
+      renderShare();
+    } catch (e) { toast(e.message, { error: true }); }
+  });
+  on("tunnel-token-clear", async () => {
+    try { await api("POST", "/api/tunnel", { enabled: t.enabled, token: "", hostname: "" }); renderShare(); }
+    catch (e) { toast(e.message, { error: true }); }
+  });
+  on("logout", async () => {
+    await api("POST", "/api/auth/logout").catch(() => {});
+    location.reload();
+  });
+  if (t.state === "starting" && !$("#share").hidden) shareTimer = setTimeout(renderShare, 1500);
+}
+
+// ------------------------------------------------------------------ inloggen
+
+function showLogin(message) {
+  const box = $("#login");
+  if (!box.hidden && !message) return;
+  box.hidden = false;
+  $("#login-msg").textContent = message || "";
+  setTimeout(() => $("#login-pw").focus(), 50);
+}
+
+$("#login-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $("#login-form button");
+  btn.disabled = true;
+  try {
+    await api("POST", "/api/auth/login", { password: $("#login-pw").value });
+    $("#login").hidden = true;
+    $("#login-pw").value = "";
+    init();
+  } catch (err) {
+    $("#login-msg").textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
 };
 
 // ------------------------------------------------------------------ tabs
@@ -855,11 +972,19 @@ window.matchMedia("(min-width: 900px)").addEventListener("change", () => { syncT
 
 // ------------------------------------------------------------------ start
 
+let started = false;
 async function init() {
-  document.body.dataset.side = "edit";
-  buildSliders();
-  syncTabs();
+  if (!started) {
+    document.body.dataset.side = "edit";
+    buildSliders();
+    syncTabs();
+    started = true;
+  }
   try {
+    const who = await api("GET", "/api/auth/status");
+    if (!who.authenticated) {
+      return showLogin(who.password_set ? "" : "Er is nog geen wachtwoord. Stel dat eerst in op je computer (knop Telefoon).");
+    }
     const [photos, status] = await Promise.all([api("GET", "/api/photos"), api("GET", "/api/status")]);
     app.photos = photos;
     app.status = status;
@@ -869,6 +994,7 @@ async function init() {
     syncControls();
     poll();
   } catch (e) {
+    if (!$("#login").hidden) return;
     toast(`Kan geen verbinding maken met de app: ${e.message}`, { error: true, ms: 10000 });
   }
 }

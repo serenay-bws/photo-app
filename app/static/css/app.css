@@ -252,6 +252,30 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .toast button { background: none; border: none; font: inherit; font-weight: 700; cursor: pointer; padding: 0; color: inherit; text-decoration: underline; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
+.share-card { max-width: 420px; max-height: calc(100vh - 40px); overflow-y: auto; }
+.share-card h3 { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin: 22px 0 6px; font-weight: 600; }
+.share-card .qr { width: 170px; height: 170px; }
+.share-row { margin-top: 14px; }
+.share-row label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.share-row .inline { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.share-row .inline input { flex: 1; min-width: 140px; margin-top: 0; }
+.share-card input[type=password], .share-card input[type=text] {
+  width: 100%; height: 38px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg);
+  color: var(--text); padding: 0 12px; font: inherit; font-size: 16px; outline: none; margin-top: 6px;
+}
+.share-card details summary { cursor: pointer; font-size: 13px; color: #cfcfd3; }
+.ok { color: #6fd38b !important; }
+.err { color: var(--danger) !important; }
+
+.login { position: fixed; inset: 0; z-index: 80; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.login-card { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.login-card .brand { margin-bottom: 8px; }
+.login-card p { color: var(--muted); margin: 0; font-size: 13px; }
+.login-card input { height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); padding: 0 14px; font: inherit; font-size: 16px; outline: none; }
+.login-card input:focus { border-color: #666; }
+.login-card .btn { height: 44px; justify-content: center; }
+.login-card .err { min-height: 18px; }
+
 /* ------------------------------------------------------------ desktop */
 @media (min-width: 900px) {
   .workspace {
@@ -298,3 +322,5 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
   .tabs button { letter-spacing: .08em; }
   .brand { letter-spacing: .16em; }
 }
+
+input, textarea { user-select: text; -webkit-user-select: text; }

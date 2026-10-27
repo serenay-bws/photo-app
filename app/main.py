@@ -2,6 +2,7 @@
 
 import io
 import logging
+import mimetypes
 import os
 import re
 import socket
@@ -19,13 +20,17 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from . import auto, match, presets, store
+from . import auth, auto, match, presets, store
 from .config import DATA_DIR, EXPORTS_DIR, JPEG_QUALITY, STATIC_DIR
 from .edits import apply_edits, effective_params
 from .imaging import open_rgb, save_jpeg
+from .tunnel import load_settings as tunnel_settings
+from .tunnel import save_settings as save_tunnel_settings
+from .tunnel import tunnel
 from .upscaler import target_size, upscaler
 
 log = logging.getLogger("fotostudio")
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 
 def _export_dir():
@@ -42,10 +47,17 @@ def _export_dir():
 
 EXPORT_DIR = _export_dir()
 
+def active_port():
+    return int(os.environ.get("FOTOSTUDIO_ACTIVE_PORT", os.environ.get("FOTOSTUDIO_PORT", 8000)))
+
+
 @asynccontextmanager
 async def _lifespan(_app):
     upscaler.start()
+    if tunnel_settings()["enabled"] and auth.password_set():
+        tunnel.start(active_port())
     yield
+    tunnel.stop()
 
 
 app = FastAPI(title="Fotostudio", lifespan=_lifespan)
@@ -93,9 +105,49 @@ def _safe_name(name):
     return stem[:60]
 
 
+LOOPBACK = ("127.0.0.1", "::1", "localhost")
+PROXY_HEADERS = ("cf-connecting-ip", "cf-ray", "x-forwarded-for", "x-forwarded-host")
+
+
 def _is_local(request: Request):
+    """Alleen echt op deze computer zelf; verkeer via de Cloudflare-tunnel telt niet."""
     host = request.client.host if request.client else ""
-    return host in ("127.0.0.1", "::1", "localhost")
+    return host in LOOPBACK and not any(h in request.headers for h in PROXY_HEADERS)
+
+
+def _client_ip(request: Request):
+    host = request.client.host if request.client else "?"
+    if host in LOOPBACK and "cf-connecting-ip" in request.headers:
+        return request.headers["cf-connecting-ip"]
+    return host
+
+
+def _authorized(request: Request):
+    return _is_local(request) or auth.valid_session(request.cookies.get(auth.COOKIE))
+
+
+PUBLIC_API = {"/api/auth/status", "/api/auth/login"}
+
+
+@app.middleware("http")
+async def _security(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api/") and path not in PUBLIC_API and not _authorized(request):
+        return JSONResponse({"detail": "Log eerst in"}, status_code=401)
+    response = await call_next(request)
+    if path.startswith("/api/"):
+        cc = response.headers.get("cache-control", "")
+        # nooit laten cachen door Cloudflare of andere tussenpartijen
+        response.headers["cache-control"] = "private, " + cc if cc and "private" not in cc else (cc or "no-store")
+    response.headers["x-content-type-options"] = "nosniff"
+    response.headers["referrer-policy"] = "no-referrer"
+    response.headers["x-frame-options"] = "DENY"
+    return response
+
+
+def _require_local(request: Request):
+    if not _is_local(request):
+        raise HTTPException(403, "Dit kan alleen op de computer zelf")
 
 
 # --------------------------------------------------------------------- API
@@ -110,16 +162,99 @@ def status(request: Request):
         "lan_url": f"http://{ip}:{port}" if ip else None,
         "export_dir": str(EXPORT_DIR),
         "is_local": _is_local(request),
+        "tunnel": tunnel.info(),
+        "password_set": auth.password_set(),
     }
 
 
+# ------------------------------------------------------------------ inloggen
+
+
+@app.get("/api/auth/status")
+def auth_status(request: Request):
+    return {
+        "authenticated": _authorized(request),
+        "is_local": _is_local(request),
+        "password_set": auth.password_set(),
+    }
+
+
+class LoginBody(BaseModel):
+    password: str
+
+
+@app.post("/api/auth/login")
+def do_login(body: LoginBody, request: Request):
+    try:
+        token = auth.login(body.password, _client_ip(request))
+    except PermissionError as e:
+        raise HTTPException(401, str(e))
+    secure = request.headers.get("x-forwarded-proto") == "https" or request.url.scheme == "https"
+    resp = JSONResponse({"ok": True})
+    resp.set_cookie(auth.COOKIE, token, max_age=auth.SESSION_DAYS * 86400, httponly=True,
+                    secure=secure, samesite="lax", path="/")
+    return resp
+
+
+@app.post("/api/auth/logout")
+def do_logout(request: Request):
+    auth.logout(request.cookies.get(auth.COOKIE))
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(auth.COOKIE, path="/")
+    return resp
+
+
+class PasswordBody(BaseModel):
+    password: str
+
+
+@app.post("/api/auth/password")
+def change_password(body: PasswordBody, request: Request):
+    _require_local(request)
+    try:
+        auth.set_password(body.password)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True}
+
+
+# ------------------------------------------------------------------ cloudflare
+
+
+class TunnelBody(BaseModel):
+    enabled: bool
+    token: str | None = None
+    hostname: str | None = None
+
+
+@app.post("/api/tunnel")
+def set_tunnel(body: TunnelBody, request: Request):
+    _require_local(request)
+    if body.enabled and not auth.password_set():
+        raise HTTPException(400, "Stel eerst een wachtwoord in")
+    changes = {"enabled": body.enabled}
+    if body.token is not None:
+        changes["token"] = body.token.strip()
+    if body.hostname is not None:
+        changes["hostname"] = re.sub(r"^https?://", "", body.hostname.strip()).strip("/")
+    old = tunnel_settings()
+    new = save_tunnel_settings(**changes)
+    if not body.enabled or new["token"] != old["token"]:
+        tunnel.stop()
+    if body.enabled:
+        tunnel.start(active_port())
+    return tunnel.info()
+
+
 @app.get("/api/qr")
-def qr(request: Request):
+def qr(request: Request, target: str = "lan"):
     import qrcode
     import qrcode.image.svg
 
     ip = lan_ip()
     url = f"http://{ip}:{request.url.port or 80}" if ip else str(request.base_url)
+    if target == "public" and tunnel.url:
+        url = tunnel.url
     img = qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage, box_size=12, border=2)
     buf = io.BytesIO()
     img.save(buf)
@@ -158,7 +293,7 @@ def photo_file(photo_id: str, kind: str):
     return FileResponse(
         store.file_path(photo_id, kind),
         media_type="image/jpeg",
-        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        headers={"Cache-Control": "private, max-age=31536000, immutable"},
     )
 
 
@@ -309,8 +444,7 @@ def download(name: str):
 
 @app.post("/api/open-export-folder")
 def open_folder(request: Request):
-    if not _is_local(request):
-        raise HTTPException(403, "Alleen op de computer zelf")
+    _require_local(request)
     path = str(EXPORT_DIR)
     if sys.platform.startswith("win"):
         os.startfile(path)  # noqa: S606
